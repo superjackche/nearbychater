@@ -16,3 +16,6 @@ local.properties
 build_error.log
 build_log.txt
 build_log_*.txt
+
+# Kotlin compiler session files
+.kotlin/sessions/

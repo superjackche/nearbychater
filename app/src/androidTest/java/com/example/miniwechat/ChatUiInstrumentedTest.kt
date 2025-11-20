@@ -42,8 +42,8 @@ class ChatUiInstrumentedTest {
                     message = message,
                     isOwn = true,
                     profile = MemberProfile(memberId = "self", localNickname = "Self"),
-                    showAvatar = true,
-                    onCancel = { cancelTriggered = true }
+                    onCancel = { cancelTriggered = true },
+                    onAttachmentClick = {}
                 )
             }
         }
