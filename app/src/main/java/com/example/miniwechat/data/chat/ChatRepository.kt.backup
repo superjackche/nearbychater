@@ -1,0 +1,618 @@
+package com.example.miniwechat.data.chat
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.core.app.NotificationCompat
+import androidx.lifecycle.ProcessLifecycleOwner
+import com.example.miniwechat.MainActivity
+import com.example.miniwechat.R
+import com.example.miniwechat.core.logging.LogManager
+import com.example.miniwechat.core.model.Attachment
+import com.example.miniwechat.core.model.ChatMessage
+import com.example.miniwechat.core.model.ConversationId
+import com.example.miniwechat.core.model.ConversationSnapshot
+import com.example.miniwechat.core.model.ConversationSummary
+import com.example.miniwechat.core.model.DiagnosticsEvent
+import com.example.miniwechat.core.model.MemberId
+import com.example.miniwechat.core.model.MemberProfile
+import com.example.miniwechat.core.model.MeshEnvelope
+import com.example.miniwechat.core.model.MessageStatus
+import com.example.miniwechat.core.model.MessageType
+import com.example.miniwechat.data.nearby.EndpointInfo
+import com.example.miniwechat.data.nearby.NearbyChatService
+import com.example.miniwechat.data.nearby.NearbyEvent
+import com.example.miniwechat.data.storage.ChatDao
+import java.util.Collections
+import java.util.Locale
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private const val SELF_SUMMARY_ID = "__self__"
+
+/** Coordinates cached conversations, Nearby mesh events, and offline queue flushing. */
+class ChatRepository(
+        private val context: Context,
+        private val nearbyChatService: NearbyChatService,
+        private val logManager: LogManager,
+        private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+        private val chatDao: ChatDao = ChatDao(context),
+        private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+) {
+    private val localMemberId: MemberId = deviceId(context)
+    private val _conversations =
+            MutableStateFlow<Map<ConversationId, ConversationSnapshot>>(emptyMap())
+    private val _members = MutableStateFlow<Map<MemberId, MemberProfile>>(emptyMap())
+    private val _diagnostics = MutableSharedFlow<DiagnosticsEvent>(extraBufferCapacity = 32)
+    private val flushTrigger = Channel<Unit>(Channel.CONFLATED)
+    private val flushJob: Job
+    private val pendingSends = ConcurrentHashMap<String, ChatMessage>()
+    private val seenPacketIds =
+            Collections.synchronizedSet(
+                    Collections.newSetFromMap(
+                            object : LinkedHashMap<String, Boolean>(1000, 0.75f, true) {
+                                override fun removeEldestEntry(
+                                        eldest: MutableMap.MutableEntry<String, Boolean>?
+                                ): Boolean {
+                                    return size > 1000
+                                }
+                            }
+                    )
+            )
+
+    val diagnostics = _diagnostics.asSharedFlow()
+    val conversations: StateFlow<Map<ConversationId, ConversationSnapshot>> = _conversations
+    val members: StateFlow<List<MemberProfile>> =
+            _members
+                    .map { it.values.sortedBy { profile -> profile.memberId } }
+                    .stateIn(externalScope, SharingStarted.Eagerly, emptyList())
+    val conversationSummaries: StateFlow<List<ConversationSummary>> =
+            combine(_conversations, _members) { convMap, memberMap ->
+                        buildSummaries(convMap, memberMap)
+                    }
+                    .stateIn(externalScope, SharingStarted.Eagerly, emptyList())
+    val selfMemberId: MemberId
+        get() = localMemberId
+
+    init {
+        externalScope.launch {
+            reloadState()
+            flushTrigger.trySend(Unit)
+        }
+        observeNearbyEvents()
+        nearbyChatService.start(
+                EndpointInfo(memberId = localMemberId, nickname = BuildNickname.local())
+        )
+        flushJob = externalScope.launch { runFlushLoop() }
+    }
+
+    fun conversationMessages(conversationId: ConversationId): StateFlow<List<ChatMessage>> =
+            _conversations
+                    .map { conversations ->
+                        conversations[conversationId]?.messages?.filter {
+                            it.type != MessageType.ACK
+                        }
+                                ?: emptyList()
+                    }
+                    .stateIn(externalScope, SharingStarted.Eagerly, emptyList())
+
+    suspend fun sendMessage(
+            conversationId: ConversationId,
+            content: String,
+            attachment: Attachment? = null
+    ) {
+        val message =
+                ChatMessage(
+                        conversationId = conversationId,
+                        senderId = localMemberId,
+                        content = content,
+                        status = MessageStatus.QUEUED,
+                        attachment = attachment
+                )
+        pendingSends[message.id] = message
+        val memberIds = knownMemberIds(conversationId)
+        onDb {
+            chatDao.ensureConversation(conversationId, resolveConversationKey(memberIds), memberIds)
+            chatDao.insertOrUpdateMessage(message)
+        }
+        upsertMessageLocally(message.copy(status = MessageStatus.SENDING))
+        flushTrigger.trySend(Unit)
+    }
+
+    suspend fun cancelMessage(conversationId: ConversationId, messageId: String) {
+        pendingSends.remove(messageId)
+        onDb {
+            chatDao.updateMessageStatus(
+                    conversationId,
+                    messageId,
+                    MessageStatus.CANCELLED,
+                    shouldRelay = false
+            )
+        }
+        updateMessageLocally(conversationId, messageId) { current ->
+            current.copy(status = MessageStatus.CANCELLED, shouldRelay = false)
+        }
+    }
+
+    suspend fun deleteConversation(conversationId: ConversationId) {
+        pendingSends.entries.removeIf { it.value.conversationId == conversationId }
+        onDb { chatDao.deleteConversation(conversationId) }
+        _conversations.update { it - conversationId }
+    }
+
+    suspend fun setConversationPinned(conversationId: ConversationId, pinned: Boolean) {
+        onDb { chatDao.setConversationPinned(conversationId, pinned) }
+        _conversations.update { conversations ->
+            val snapshot = conversations[conversationId] ?: return@update conversations
+            conversations + (conversationId to snapshot.copy(isPinned = pinned))
+        }
+    }
+
+    suspend fun updateLocalNickname(memberId: MemberId, nickname: String) {
+        val current = _members.value[memberId]
+        val updated = (current ?: MemberProfile(memberId = memberId)).copy(localNickname = nickname)
+        onDb { chatDao.upsertMember(updated) }
+        upsertMemberLocally(updated)
+    }
+
+    fun conversationIdFor(remoteMemberId: MemberId): ConversationId =
+            conversationIdFromMembers(setOf(remoteMemberId))
+
+    fun conversationIdForMembers(remoteMemberIds: Set<MemberId>): ConversationId =
+            conversationIdFromMembers(remoteMemberIds)
+
+    fun ensureConversationMembers(remoteMemberIds: Set<MemberId>): ConversationId {
+        val filtered = remoteMemberIds.filterNot { it == localMemberId }.toSet()
+        val conversationId = conversationIdFromMembers(filtered)
+        val memberSet = filtered + localMemberId
+        externalScope.launch {
+            onDb {
+                chatDao.ensureConversation(
+                        conversationId,
+                        resolveConversationKey(memberSet),
+                        memberSet
+                )
+            }
+            ensureConversationLocally(conversationId, memberSet)
+        }
+        return conversationId
+    }
+
+    suspend fun refresh() {
+        nearbyChatService.refreshDiscovery()
+        reloadState()
+        flushTrigger.trySend(Unit)
+    }
+
+    fun isMemberConnected(memberId: MemberId): Boolean =
+            nearbyChatService.isMemberConnected(memberId)
+
+    private suspend fun attemptSend(message: ChatMessage) {
+        when (val target = resolveConversationTarget(message.conversationId)) {
+            ConversationTarget.Unknown -> return
+            ConversationTarget.Self -> {
+                onDb {
+                    chatDao.updateMessageStatus(
+                            message.conversationId,
+                            message.id,
+                            MessageStatus.SENT,
+                            shouldRelay = false
+                    )
+                }
+                updateMessageLocally(message.conversationId, message.id) { current ->
+                    current.copy(status = MessageStatus.SENT, shouldRelay = false)
+                }
+                pendingSends.remove(message.id) // 确保移除消息
+            }
+            is ConversationTarget.Remote -> {
+                val envelope =
+                        MeshEnvelope(
+                                conversationId = message.conversationId,
+                                message = message.copy(status = MessageStatus.SENT),
+                                originId = localMemberId,
+                                hopCount = 0
+                        )
+                // 实际调用 nearbyChatService 发送消息
+                val success =
+                        nearbyChatService.broadcast(
+                                conversationId = message.conversationId,
+                                message = envelope,
+                                targetMembers = target.memberIds
+                        )
+                val nextStatus = if (success) MessageStatus.SENT else MessageStatus.FAILED
+                onDb { chatDao.updateMessageStatus(message.conversationId, message.id, nextStatus) }
+                updateMessageLocally(message.conversationId, message.id) { current ->
+                    current.copy(status = nextStatus)
+                }
+                pendingSends.remove(message.id) // 无论成功与否都移除
+            }
+        }
+    }
+
+    private suspend fun reloadState() {
+        val (members, conversations) = onDb { chatDao.readMembers() to chatDao.readConversations() }
+        _members.value = members
+        _conversations.value = conversations
+    }
+
+    private fun observeNearbyEvents() {
+        externalScope.launch {
+            nearbyChatService.events().collect { event ->
+                when (event) {
+                    is NearbyEvent.MemberOnline ->
+                            handleMemberOnline(event.memberId, event.nickname)
+                    is NearbyEvent.MemberOffline -> handleMemberOffline(event.memberId)
+                    is NearbyEvent.MessageReceived -> handleRemoteMessage(event.envelope)
+                    is NearbyEvent.Error -> trackDiagnostics(event.diagnosticsEvent)
+                }
+            }
+        }
+    }
+
+    private suspend fun handleMemberOnline(memberId: MemberId, nickname: String?) {
+        val now = System.currentTimeMillis()
+        val profile = _members.value[memberId]
+        val updated =
+                (profile ?: MemberProfile(memberId = memberId)).copy(
+                        remoteNickname = nickname ?: profile?.remoteNickname,
+                        isOnline = true,
+                        lastSeenAt = now
+                )
+        val conversationId = conversationIdFor(memberId)
+        val memberIds = setOf(localMemberId, memberId)
+        onDb {
+            chatDao.updateMemberOnlineState(memberId, nickname, true, now)
+            chatDao.ensureConversation(conversationId, resolveConversationKey(memberIds), memberIds)
+        }
+        upsertMemberLocally(updated)
+        ensureConversationLocally(conversationId, memberIds)
+        flushTrigger.trySend(Unit)
+    }
+
+    private suspend fun handleMemberOffline(memberId: MemberId) {
+        val profile = _members.value[memberId] ?: return
+        val updated = profile.copy(isOnline = false, lastSeenAt = System.currentTimeMillis())
+        onDb { chatDao.updateMemberOnlineState(memberId, null, false, updated.lastSeenAt) }
+        upsertMemberLocally(updated)
+    }
+
+    private suspend fun handleRemoteMessage(envelope: MeshEnvelope) {
+        // 检查是否已处理过该消息
+        if (seenPacketIds.contains(envelope.packetId)) {
+            return
+        }
+        seenPacketIds.add(envelope.packetId)
+
+        val message = envelope.message
+
+        if (message.type == MessageType.ACK) {
+            val targetMessageId = message.content
+            onDb {
+                chatDao.updateMessageStatus(
+                        message.conversationId,
+                        targetMessageId,
+                        MessageStatus.DELIVERED
+                )
+            }
+            updateMessageLocally(message.conversationId, targetMessageId) { current ->
+                current.copy(status = MessageStatus.DELIVERED)
+            }
+            return
+        }
+
+        if (message.senderId == localMemberId) {
+            onDb {
+                chatDao.updateMessageStatus(message.conversationId, message.id, MessageStatus.SENT)
+            }
+            updateMessageLocally(message.conversationId, message.id) { current ->
+                current.copy(status = MessageStatus.SENT)
+            }
+            return
+        }
+        val delivered = message.copy(status = MessageStatus.SENT)
+        val remoteParticipants =
+                envelope.participants.takeIf { it.isNotEmpty() }
+                        ?: (knownMemberIds(message.conversationId) - localMemberId)
+        val memberIds = (remoteParticipants + message.senderId).toSet()
+        val fullMemberSet = memberIds + localMemberId
+        onDb {
+            chatDao.ensureConversation(
+                    message.conversationId,
+                    resolveConversationKey(fullMemberSet),
+                    fullMemberSet
+            )
+            chatDao.insertOrUpdateMessage(delivered)
+        }
+        ensureConversationLocally(message.conversationId, fullMemberSet)
+        upsertMessageLocally(delivered)
+
+        // 发送ACK确认
+        val ack =
+                ChatMessage(
+                        conversationId = message.conversationId,
+                        senderId = localMemberId,
+                        content = message.id,
+                        type = MessageType.ACK,
+                        status = MessageStatus.SENT
+                )
+        attemptSend(ack)
+
+        // 后台时显示通知
+        if (!isAppInForeground()) {
+            showNotification(message.conversationId, message)
+        }
+    }
+
+    private suspend fun trackDiagnostics(event: DiagnosticsEvent) {
+        logManager.log(event)
+        _diagnostics.emit(event)
+    }
+
+    private suspend fun flushQueuedMessages() {
+        _conversations.value.values.forEach { snapshot ->
+            snapshot.messages
+                    .filter {
+                        it.status == MessageStatus.QUEUED || it.status == MessageStatus.FAILED
+                    }
+                    .forEach { pending ->
+                        pendingSends[pending.id] = pending
+                        attemptSend(pending)
+                    }
+        }
+    }
+
+    private suspend fun runFlushLoop() {
+        for (trigger in flushTrigger) {
+            flushQueuedMessages()
+        }
+    }
+
+    private fun upsertMessageLocally(message: ChatMessage) {
+        _conversations.update { conversations ->
+            val snapshot =
+                    conversations[message.conversationId]
+                            ?: ConversationSnapshot(conversationId = message.conversationId)
+            val updatedMessages = snapshot.messages.filterNot { it.id == message.id } + message
+            val updatedMemberIds = snapshot.memberIds + message.senderId + localMemberId
+            val updatedSnapshot =
+                    snapshot.copy(
+                            messages = updatedMessages.sortedBy { it.timestamp },
+                            memberIds = updatedMemberIds,
+                            conversationKey = resolveConversationKey(updatedMemberIds)
+                    )
+            conversations + (message.conversationId to updatedSnapshot)
+        }
+    }
+
+    private fun updateMessageLocally(
+            conversationId: ConversationId,
+            messageId: String,
+            transform: (ChatMessage) -> ChatMessage
+    ) {
+        _conversations.update { conversations ->
+            val snapshot = conversations[conversationId] ?: return@update conversations
+            val updatedMessages =
+                    snapshot.messages.map { if (it.id == messageId) transform(it) else it }
+            conversations + (conversationId to snapshot.copy(messages = updatedMessages))
+        }
+    }
+
+    private fun ensureConversationLocally(
+            conversationId: ConversationId,
+            memberIds: Set<MemberId>
+    ) {
+        _conversations.update { conversations ->
+            val existing = conversations[conversationId]
+            val mergedMembers = (existing?.memberIds ?: emptySet()) + memberIds + localMemberId
+            val snapshot =
+                    (existing ?: ConversationSnapshot(conversationId = conversationId)).copy(
+                            memberIds = mergedMembers,
+                            conversationKey = resolveConversationKey(mergedMembers)
+                    )
+            conversations + (conversationId to snapshot)
+        }
+    }
+
+    private fun upsertMemberLocally(profile: MemberProfile) {
+        _members.update { it + (profile.memberId to profile) }
+    }
+
+    private fun knownMemberIds(conversationId: ConversationId): Set<MemberId> {
+        return (_conversations.value[conversationId]?.memberIds ?: emptySet()) + localMemberId
+    }
+
+    private suspend fun <T> onDb(block: () -> T): T = withContext(ioDispatcher) { block() }
+
+    private fun deviceId(context: Context): MemberId {
+        val androidId =
+                Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
+        return androidId ?: UUID.randomUUID().toString()
+    }
+
+    private fun buildSummaries(
+            conversations: Map<ConversationId, ConversationSnapshot>,
+            members: Map<MemberId, MemberProfile>
+    ): List<ConversationSummary> {
+        val grouped = mutableMapOf<String, ConversationSummary>()
+        conversations.values.forEach { snapshot ->
+            val summary = snapshot.toSummary(members)
+            val key = summary.conversationKey ?: summaryKey(summary)
+            val existing = grouped[key]
+            if (existing == null || summary.lastTimestamp >= existing.lastTimestamp) {
+                grouped[key] = summary
+            }
+        }
+
+        val summaries = grouped.values.toMutableList()
+        if (summaries.none { it.isSelf }) {
+            summaries.add(0, selfSummary())
+        }
+        val (selfItems, nonSelf) = summaries.partition { it.isSelf }
+        val (pinned, unpinned) = nonSelf.partition { it.isPinned }
+        return selfItems.sortedByDescending { it.lastTimestamp } +
+                pinned.sortedByDescending { it.lastTimestamp } +
+                unpinned.sortedByDescending { it.lastTimestamp }
+    }
+
+    private fun ConversationSnapshot.toSummary(
+            members: Map<MemberId, MemberProfile>
+    ): ConversationSummary {
+        val remoteMembers = memberIds.filterNot { it == localMemberId }
+        val isSelf = remoteMembers.isEmpty()
+        val lastMessage = messages.maxByOrNull { it.timestamp }
+        val preview =
+                lastMessage?.let { formatPreview(it) }
+                        ?: if (isSelf) "本机收藏夹" else "Tap to start chatting"
+        val unreadCount =
+                messages.count { it.senderId != localMemberId && it.status == MessageStatus.QUEUED }
+        val avatarSeed = remoteMembers.firstOrNull() ?: localMemberId
+        val key = resolveConversationKey(memberIds + localMemberId)
+        return ConversationSummary(
+                conversationId = conversationId,
+                title = if (isSelf) "我" else conversationTitle(remoteMembers, members),
+                preview = preview,
+                lastTimestamp = lastMessage?.timestamp ?: 0L,
+                unreadCount = unreadCount,
+                avatarSeed = avatarSeed,
+                isSelf = isSelf,
+                conversationKey = key,
+                isPinned = isPinned
+        )
+    }
+
+    private fun summaryKey(summary: ConversationSummary): String {
+        return if (summary.isSelf) SELF_SUMMARY_ID else summary.title.lowercase(Locale.getDefault())
+    }
+
+    private fun selfSummary(): ConversationSummary {
+        val snapshot = _conversations.value[conversationIdFor(localMemberId)]
+        val lastMessage = snapshot?.messages?.maxByOrNull { it.timestamp }
+        val preview = lastMessage?.let { formatPreview(it) } ?: "本机收藏夹"
+        val unread =
+                snapshot?.messages?.count {
+                    it.senderId != localMemberId && it.status == MessageStatus.QUEUED
+                }
+                        ?: 0
+        return ConversationSummary(
+                conversationId = conversationIdFor(localMemberId),
+                title = "我",
+                preview = preview,
+                lastTimestamp = lastMessage?.timestamp ?: 0L,
+                unreadCount = unread,
+                avatarSeed = localMemberId,
+                isSelf = true,
+                conversationKey = SELF_SUMMARY_ID,
+                isPinned = snapshot?.isPinned ?: false
+        )
+    }
+
+    private fun resolveConversationKey(memberIds: Set<MemberId>): String {
+        val remoteMembers = memberIds.filterNot { it == localMemberId }.sorted()
+        return if (remoteMembers.isEmpty()) SELF_SUMMARY_ID else remoteMembers.joinToString(":")
+    }
+
+    private fun resolveConversationTarget(conversationId: ConversationId): ConversationTarget {
+        val snapshot = _conversations.value[conversationId] ?: return ConversationTarget.Unknown
+        val remoteMembers = snapshot.memberIds.filterNot { it == localMemberId }.toSet()
+        return if (remoteMembers.isEmpty()) ConversationTarget.Self
+        else ConversationTarget.Remote(remoteMembers)
+    }
+
+    private fun conversationTitle(
+            memberIds: List<MemberId>,
+            members: Map<MemberId, MemberProfile>
+    ): String {
+        if (memberIds.isEmpty()) {
+            return "我"
+        }
+        return memberIds.joinToString(separator = ", ") { memberId ->
+            val profile = members[memberId]
+            profile?.remoteNickname?.takeIf { it.isNotBlank() }
+                    ?: profile?.localNickname?.takeIf { it.isNotBlank() } ?: memberId.take(6)
+        }
+    }
+
+    private fun formatPreview(message: ChatMessage): String {
+        val content = message.content.ifBlank { "[无文字内容]" }
+        return if (content.length > 40) content.take(40) + "..." else content
+    }
+
+    private fun conversationIdFromMembers(remoteMemberIds: Set<MemberId>): ConversationId {
+        val normalized = (remoteMemberIds + localMemberId).filter { it.isNotBlank() }.sorted()
+        return normalized.joinToString(separator = "-")
+    }
+
+    private object BuildNickname {
+        fun local(): String = Build.MODEL ?: "Android"
+    }
+
+    private fun isAppInForeground(): Boolean {
+        return ProcessLifecycleOwner.get()
+                .lifecycle
+                .currentState
+                .isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+    }
+
+    private fun showNotification(conversationId: ConversationId, message: ChatMessage) {
+        val channelId = "miniwechat_messages"
+        val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                    NotificationChannel(channelId, "Messages", NotificationManager.IMPORTANCE_HIGH)
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        val intent =
+                Intent(context, MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                }
+        val pendingIntent =
+                PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
+
+        val contentText =
+                when (message.type) {
+                    MessageType.IMAGE -> "[图片]"
+                    else -> message.content
+                }
+
+        val notification =
+                NotificationCompat.Builder(context, channelId)
+                        .setSmallIcon(R.mipmap.ic_launcher)
+                        .setContentTitle("收到新消息")
+                        .setContentText(contentText)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
+                        .build()
+
+        notificationManager.notify(message.id.hashCode(), notification)
+    }
+}
+
+private sealed interface ConversationTarget {
+    data object Unknown : ConversationTarget
+    data object Self : ConversationTarget
+    data class Remote(val memberIds: Set<MemberId>) : ConversationTarget
+}

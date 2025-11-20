@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Minimal rounded bubble -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M32,30h44c7.73,0 14,6.27 14,14v20c0,7.73 -6.27,14 -14,14H60l-6,8l-6,-8H32c-7.73,0 -14,-6.27 -14,-14V44c0,-7.73 6.27,-14 14,-14Z" />
+    <!-- Inner signal icon -->
+    <path
+        android:fillColor="#00BCD4"
+        android:pathData="M54,40c6.35,0 12.32,2.48 16.79,7l-3.5,3.5C64.98,47.16 59.71,45 54,45s-10.98,2.16 -13.29,5.5l-3.5,-3.5C41.68,42.48 47.65,40 54,40z" />
+    <path
+        android:fillColor="#00A3C4"
+        android:pathData="M54,47c4.58,0 8.89,1.78 12.12,5l-3.58,3.58C60.44,53.48 57.33,52.4 54,52.4s-6.44,1.08 -8.54,3.18L41.88,52C45.11,48.78 49.42,47 54,47z" />
+    <path
+        android:fillColor="#008DB3"
+        android:pathData="M57.5,60a3.5,3.5 0 1 1 -7,0a3.5,3.5 0 1 1 7,0z" />
+</vector>
