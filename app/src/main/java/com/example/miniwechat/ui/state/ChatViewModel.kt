@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 // ViewModel：负责UI数据与逻辑，生命周期长于Activity (屏幕旋转不丢失数据)
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 public class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val logManager = LogManager(application)
     private val settingsRepository = SettingsRepository(application)
