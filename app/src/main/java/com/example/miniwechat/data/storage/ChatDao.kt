@@ -4,8 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import android.os.Build
-import androidx.annotation.RequiresApi
 import com.example.miniwechat.core.model.Attachment
 import com.example.miniwechat.core.model.AttachmentType
 import com.example.miniwechat.core.model.ChatMessage
@@ -19,7 +17,6 @@ import com.example.miniwechat.core.model.MessageType
 // ChatDao是Data Access Object（数据访问对象）的缩写
 // DAO模式把数据库操作封装成一个个函数，让上层代码不用直接写SQL
 // 这样代码更清晰，也方便测试
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 public class ChatDao(context: Context) {
     // helper是AppDatabaseHelper的实例，用于获取数据库连接
     // applicationContext确保不会因为Activity销毁导致内存泄漏

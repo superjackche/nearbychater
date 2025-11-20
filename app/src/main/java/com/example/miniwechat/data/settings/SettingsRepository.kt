@@ -1,8 +1,6 @@
 package com.example.miniwechat.data.settings
 
 import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
 import com.example.miniwechat.core.model.ConversationId
 import com.example.miniwechat.data.storage.SettingsDao
 import kotlinx.coroutines.CoroutineDispatcher
@@ -19,7 +17,6 @@ import kotlinx.coroutines.withContext
 // 1. 封装数据源访问（这里是SettingsDao）
 // 2. 提供StateFlow让UI层观察数据变化
 // 3. 在后台线程执行数据库操作，不阻塞UI
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 class SettingsRepository(
         context: Context,
         // ioDispatcher指定在哪个线程执行数据库操作
