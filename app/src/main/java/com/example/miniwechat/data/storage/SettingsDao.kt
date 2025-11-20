@@ -2,9 +2,6 @@ package com.example.miniwechat.data.storage
 
 import android.content.ContentValues
 import android.content.Context
-import android.os.Build
-import androidx.annotation.RequiresApi
-
 // 设置项的键名，定义为常量
 // private const表示私有常量，只在这个文件内可见
 // 这样可以避免拼写错误，如果键名改了只需改这里
@@ -13,7 +10,6 @@ private const val KEY_BACKGROUND_SERVICE = "background_service_enabled"
 
 // SettingsDao：设置数据访问对象
 // 用于读写应用的各种设置项（诊断模式、后台服务等）
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 class SettingsDao(context: Context) {
     // helper用于访问settings表
     private val helper = AppDatabaseHelper(context.applicationContext)
