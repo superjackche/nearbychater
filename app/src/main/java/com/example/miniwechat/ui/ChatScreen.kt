@@ -383,7 +383,7 @@ private fun MessageList(
     }
 }
 
-// @OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatBubble(
         message: ChatMessage,
