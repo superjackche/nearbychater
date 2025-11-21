@@ -27,8 +27,14 @@
 
 # Compose
 -assumenosideeffects class androidx.compose.runtime.Composer {
-    void reportCompositionError(...)
+    public *** reportCompositionError(...);
 }
+
+# Compose Material
+-keep class androidx.compose.material.** { *; }
+
+# Compose Animation
+-keep class androidx.compose.animation.** { *; }
 
 # AndroidX
 -dontwarn androidx.**
