@@ -14,3 +14,9 @@ build_log_*.txt
 
 # Kotlin compiler session files
 .kotlin/sessions/
+lint_results.txt
+lint_report.log
+build_warnings.log
+build_error_4.log
+build_error_3.log
+build_error_2.log

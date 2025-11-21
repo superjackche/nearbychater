@@ -114,6 +114,14 @@ cd miniwechat
 ./gradlew installDebug
 ```
 
+### 自动构建
+本项目使用 GitHub Actions 进行自动构建：
+- 每次推送到 main 分支或创建 Pull Request 时，会自动构建 Release 版本的 APK
+- 创建 Release 时，会自动构建签名的 APK 并作为 Release Asset 附加
+
+你可以在 [Actions](https://github.com/your-username/miniwechat/actions) 页面查看构建状态，
+在 [Releases](https://github.com/your-username/miniwechat/releases) 页面下载最新版本。
+
 ### 项目结构
 ```
 app/

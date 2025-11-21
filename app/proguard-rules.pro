@@ -13,9 +13,33 @@
 #}
 
 # Uncomment this to preserve the line number information for
-# debugging stack traces.
+# debugging stack traces:
 #-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
-# hide the original source file name.
+# hide the original source file name:
 #-renamesourcefileattribute SourceFile
+
+# Kotlin
+-keep class kotlin.** { *; }
+-keep class kotlinx.** { *; }
+-dontwarn kotlin.**
+
+# Compose
+-assumenosideeffects class androidx.compose.runtime.Composer {
+    void reportCompositionError(...)
+}
+
+# AndroidX
+-dontwarn androidx.**
+-keep class androidx.** { *; }
+
+# Coroutines
+-dontwarn kotlinx.coroutines.flow.**
+-dontwarn kotlinx.coroutines.**
+
+# Coil
+-dontwarn coil.**
+
+# Serialization
+-dontwarn kotlinx.serialization.**
