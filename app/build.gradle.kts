@@ -7,9 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.miniwechat"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.miniwechat"
@@ -47,6 +45,13 @@ android {
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
+    }
+    
+    // 添加Android 16兼容性配置
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
     }
 }
 

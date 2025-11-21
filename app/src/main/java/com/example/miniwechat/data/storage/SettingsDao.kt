@@ -48,8 +48,8 @@ class SettingsDao(context: Context) {
     fun readByPrefix(prefix: String): Map<String, String> {
         return helper.readableDatabase.query(
                         "settings",
-                        arrayOf("key", "value"), // 只查key和value两列
-                        "key LIKE ?", // where条件：key匹配某个模式
+                        arrayOf("setting_key", "value"), // 只查setting_key和value两列
+                        "setting_key LIKE ?", // where条件：setting_key匹配某个模式
                         arrayOf("$prefix%"), // %是SQL通配符，匹配任意字符
                         null, // groupBy
                         null, // having
@@ -59,7 +59,7 @@ class SettingsDao(context: Context) {
                     // buildMap创建不可变Map
                     buildMap {
                         while (cursor.moveToNext()) {
-                            // getString(0)获取第0列（key）
+                            // getString(0)获取第0列（setting_key）
                             // getString(1)获取第1列（value）
                             val key = cursor.getString(0)
                             val value = cursor.getString(1)
@@ -78,7 +78,7 @@ class SettingsDao(context: Context) {
         return helper.readableDatabase.query(
                         "settings",
                         arrayOf("value"), // 只查value列
-                        "key = ?", // where条件：精确匹配key
+                        "setting_key = ?", // where条件：精确匹配setting_key
                         arrayOf(key), // 参数替换?
                         null,
                         null,
@@ -98,7 +98,7 @@ class SettingsDao(context: Context) {
                 "settings",
                 null,
                 ContentValues().apply {
-                    put("key", key)
+                    put("setting_key", key)
                     put("value", value)
                 },
                 // CONFLICT_REPLACE：遇到主键冲突时替换旧值
@@ -110,6 +110,6 @@ class SettingsDao(context: Context) {
     // 删除指定的设置项
     // 如果key不存在，delete操作不会报错，只是删除0行
     fun deleteKey(key: String) {
-        helper.writableDatabase.delete("settings", "key = ?", arrayOf(key))
+        helper.writableDatabase.delete("settings", "setting_key = ?", arrayOf(key))
     }
 }

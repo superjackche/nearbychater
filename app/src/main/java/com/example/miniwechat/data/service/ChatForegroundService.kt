@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -31,7 +32,16 @@ class ChatForegroundService : Service() {
         // startForeground把服务变成前台服务
         // 参数：通知ID，通知对象
         // 调用后会立即显示通知
-        startForeground(NOTIFICATION_ID, createNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Android 14 (UPSIDE_DOWN_CAKE) 及以上版本需要额外参数
+            startForeground(
+                NOTIFICATION_ID, 
+                createNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
+        } else {
+            startForeground(NOTIFICATION_ID, createNotification())
+        }
 
         // START_STICKY表示服务被杀死后会自动重启
         // 这样可以保证近场通信不会中断
