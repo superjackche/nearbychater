@@ -65,7 +65,6 @@ import kotlinx.coroutines.launch
 // 提供各种应用设置选项:
 // - 后台运行开关
 // - 诊断模式开关
-// - 日志管理
 // - 测试数据生成
 @Composable
 internal fun SettingsScreen(
@@ -90,85 +89,76 @@ internal fun SettingsScreen(
         val showGenerateSamplesDialog = remember { mutableStateOf(false) }
         val showDeleteSamplesDialog = remember { mutableStateOf(false) }
 
-        Column(
-                modifier =
-                        modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(safeInsets.asPaddingValues())
-                                .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        Surface(
+                modifier = modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
         ) {
-                // === 标题部分 ===
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Column(
+                        modifier =
+                                Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(safeInsets.asPaddingValues())
+                                        .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                        Text(
-                                text = "设置",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold
-                        )
+                        // === 标题部分 ===
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                        ) {
+                                Text(
+                                        text = "设置",
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        fontWeight = FontWeight.Bold
+                                )
+                        }
+
+                        // === 设备ID部分 ===
+                        Text(text = "设备信息", style = MaterialTheme.typography.headlineSmall)
+                        MemberIdCard(memberId = selfMemberId)
+
+                        // === 服务选项部分 ===
+                        Text(text = "服务选项", style = MaterialTheme.typography.headlineSmall)
+                        Column(Modifier.fillMaxWidth()) {
+                                Text(text = "保持后台运行", style = MaterialTheme.typography.titleMedium)
+                                Text(text = "关闭后，应用进入后台将停止接收消息。")
+                                RowWithSwitch(
+                                        checked = backgroundServiceEnabled,
+                                        onCheckedChange = {
+                                                viewModel.setBackgroundServiceEnabled(it)
+                                        }
+                                )
+                        }
+
+                        // === 诊断选项部分 ===
+                        Text(text = "诊断选项", style = MaterialTheme.typography.headlineSmall)
+                        Column(Modifier.fillMaxWidth()) {
+                                Text(text = "诊断气泡", style = MaterialTheme.typography.titleMedium)
+                                Text(text = "在演示或调试时于界面顶部显示错误提示。")
+                                RowWithSwitch(
+                                        checked = diagnosticsEnabled,
+                                        onCheckedChange = { viewModel.setDiagnosticsEnabled(it) }
+                                )
+                        }
+
+                        // === 性能测试部分 ===
+                        Text(text = "性能测试", style = MaterialTheme.typography.headlineSmall)
+                        Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                                Button(
+                                        onClick = { showGenerateSamplesDialog.value = true },
+                                        modifier = Modifier.weight(1f)
+                                ) { Text(text = "生成测试数据") }
+                                Button(
+                                        onClick = { showDeleteSamplesDialog.value = true },
+                                        modifier = Modifier.weight(1f)
+                                ) { Text(text = "删除测试数据") }
+                        }
                 }
-
-                // === 设备ID部分 ===
-                Text(text = "设备信息", style = MaterialTheme.typography.headlineSmall)
-                MemberIdCard(memberId = selfMemberId)
-
-                // === 服务选项部分 ===
-                Text(text = "服务选项", style = MaterialTheme.typography.headlineSmall)
-                Column(Modifier.fillMaxWidth()) {
-                        Text(text = "保持后台运行", style = MaterialTheme.typography.titleMedium)
-                        Text(text = "关闭后，应用进入后台将停止接收消息。")
-                        RowWithSwitch(
-                                checked = backgroundServiceEnabled,
-                                onCheckedChange = {
-                                        viewModel.setBackgroundServiceEnabled(it)
-                                }
-                        )
-                }
-
-                // === 诊断选项部分 ===
-                Text(text = "诊断选项", style = MaterialTheme.typography.headlineSmall)
-                Column(Modifier.fillMaxWidth()) {
-                        Text(text = "诊断气泡", style = MaterialTheme.typography.titleMedium)
-                        Text(text = "在演示或调试时于界面顶部显示错误提示。")
-                        RowWithSwitch(
-                                checked = diagnosticsEnabled,
-                                onCheckedChange = { viewModel.setDiagnosticsEnabled(it) }
-                        )
-                }
-
-                // === 日志管理部分 ===
-                Text(text = "日志管理", style = MaterialTheme.typography.headlineSmall)
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                        Button(
-                                onClick = { viewModel.refreshLogs() },
-                                modifier = Modifier.weight(1f)
-                        ) { Text(text = "刷新") }
-                        Button(
-                                onClick = { viewModel.clearLogs() },
-                                modifier = Modifier.weight(1f)
-                        ) { Text(text = "清空") }
-                        Button(
-                                onClick = { showGenerateSamplesDialog.value = true },
-                                modifier = Modifier.weight(1f)
-                        ) { Text(text = "生成") }
-                        Button(
-                                onClick = { showDeleteSamplesDialog.value = true },
-                                modifier = Modifier.weight(1f)
-                        ) { Text(text = "删除") }
-                }
-
-                // === 打开日志按钮 ===
-                Button(
-                        onClick = { viewModel.refreshLogs() },
-                        modifier = Modifier.fillMaxWidth()
-                ) { Text(text = "打开日志") }
         }
 
         // === 生成测试数据确认对话框 ===
@@ -178,7 +168,7 @@ internal fun SettingsScreen(
                 androidx.compose.material3.AlertDialog(
                         onDismissRequest = { showGenerateSamplesDialog.value = false },
                         title = { Text("生成会话列表") },
-                        text = { Text("即将写入 20 个用于测试的会话及示例消息，用于滚动性能验证。确定继续吗？") },
+                        text = { Text("即将生成 100 个用于测试的会话，每个会话中有数十条消息（包括文本和表情符号）。确定继续吗？") },
                         confirmButton = {
                                 TextButton(
                                         onClick = {
@@ -230,8 +220,8 @@ private fun MemberIdCard(memberId: String) {
         Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium, // 圆角矩形
-                color = MaterialTheme.colorScheme.surfaceVariant, // 表面变体色
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.surface, // 使用surface color适配暗黑模式
+                contentColor = MaterialTheme.colorScheme.onSurface
         ) {
                 // Row: 水平布局
                 Row(

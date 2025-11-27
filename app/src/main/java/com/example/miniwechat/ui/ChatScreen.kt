@@ -23,14 +23,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -46,10 +48,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DoneAll
 import androidx.compose.material.icons.rounded.Pending
 import androidx.compose.material3.AlertDialog
@@ -61,6 +63,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -79,6 +82,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -97,6 +101,7 @@ import com.example.miniwechat.core.model.MessageStatus
 import com.example.miniwechat.ui.state.ChatViewModel
 import com.example.miniwechat.ui.state.DiagnosticsBubbleState
 import com.example.miniwechat.ui.theme.BubbleGray
+import com.example.miniwechat.ui.theme.BubbleGrayDark
 import com.example.miniwechat.ui.theme.SentBubbleDark
 import com.example.miniwechat.ui.theme.SentBubbleLight
 import java.text.SimpleDateFormat
@@ -162,51 +167,41 @@ internal fun ChatScreen(
                 }
             }
 
-    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-                Modifier.fillMaxSize()
-                        .windowInsetsPadding(
-                                WindowInsets.safeDrawing.only(
-                                        WindowInsetsSides.Top + WindowInsetsSides.Horizontal
-                                )
-                        )
-                        .imePadding()
-        ) {
+    // 使用Scaffold布局处理输入法适配和顶部导航栏
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            // 将ChatTopBar作为Scaffold的topBar，确保正确处理状态栏空间
+            // Scaffold的topBar会自动处理状态栏空间，无需手动计算
             ChatTopBar(
-                    title = title,
-                    subtitle = subtitle,
-                    onBack = onBack,
-                    menuExpanded = overflowMenuExpanded,
-                    onToggleMenu = { overflowMenuExpanded = !overflowMenuExpanded },
-                    onDismissMenu = { overflowMenuExpanded = false },
-                    canRename = currentConversationId != null,
-                    onRenameConversation = {
-                        overflowMenuExpanded = false
-                        if (currentConversationId != null) {
-                            showRenameDialog = true
-                        }
-                    },
-                    onOpenSettings = {
-                        overflowMenuExpanded = false
-                        onOpenSettings()
-                    },
-                    onOpenLogs = {
-                        overflowMenuExpanded = false
-                        onOpenLogs()
+                title = title,
+                subtitle = subtitle,
+                onBack = onBack,
+                menuExpanded = overflowMenuExpanded,
+                onToggleMenu = { overflowMenuExpanded = !overflowMenuExpanded },
+                onDismissMenu = { overflowMenuExpanded = false },
+                canRename = currentConversationId != null,
+                onRenameConversation = {
+                    overflowMenuExpanded = false
+                    if (currentConversationId != null) {
+                        showRenameDialog = true
                     }
+                },
+                onOpenSettings = {
+                    overflowMenuExpanded = false
+                    onOpenSettings()
+                },
+                onOpenLogs = {
+                    overflowMenuExpanded = false
+                    onOpenLogs()
+                }
             )
-            HorizontalDivider(color = Color(0x1F000000))
-            MessageList(
-                    modifier = Modifier.weight(1f),
-                    messages = messages,
-                    members = members,
-                    selfId = viewModel.selfMemberId,
-                    onCancel = { viewModel.cancelMessage(it) },
-                    onAttachmentClick = { previewAttachment = it }
-            )
-            HorizontalDivider(color = Color(0x1F000000))
-            MessageComposerBar(
-                    modifier = Modifier.navigationBarsPadding().imePadding(),
+        },
+        bottomBar = {
+            // 输入框与键盘无缝贴合，添加平滑过渡动画
+            Box {
+                MessageComposerBar(
+                    modifier = Modifier,
                     text = composerText,
                     onTextChange = { composerText = it },
                     onSend = {
@@ -217,46 +212,77 @@ internal fun ChatScreen(
                     },
                     onPickPhoto = {
                         photoPickerLauncher.launch(
-                                PickVisualMediaRequest(
-                                        ActivityResultContracts.PickVisualMedia.ImageOnly
-                                )
+                            PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                            )
                         )
-                    }
-            )
+                    },
+                    isSending = viewModel.isSending.collectAsStateWithLifecycle().value
+                )
+            }
         }
+    ) { innerPadding ->
+        // 主内容区域
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Horizontal // 移除Top，因为Scaffold的topBar会自动处理
+                        )
+                    )
+                    .padding(innerPadding) // 使用Scaffold的内边距，确保内容不被底部栏遮挡
+            ) {
+                // 移除ChatTopBar，因为已经作为Scaffold的topBar
+                HorizontalDivider(color = Color(0x1F000000))
+                // 使用weight(1f)确保MessageList占据剩余空间
+                MessageList(
+                    modifier = Modifier.weight(1f),
+                    messages = messages,
+                    members = members,
+                    selfId = viewModel.selfMemberId,
+                    onCancel = { viewModel.cancelMessage(it) },
+                    onAttachmentClick = { previewAttachment = it },
+                    viewModel = viewModel
+                )
+                HorizontalDivider(color = Color(0x1F000000))
+            }
 
-        DiagnosticsBubble(
+            // 诊断气泡
+            DiagnosticsBubble(
                 state = diagnostics,
                 onDismiss = { viewModel.dismissDiagnosticsBubble() },
                 modifier =
-                        Modifier.align(Alignment.TopCenter)
-                                .windowInsetsPadding(
-                                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
-                                )
-                                .padding(top = 16.dp)
-        )
+                    Modifier.align(Alignment.TopCenter)
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                        )
+                        .padding(top = 16.dp)
+            )
 
-        previewAttachment?.let { attachment ->
-            PhotoPreviewDialog(
+            // 图片预览对话框
+            previewAttachment?.let { attachment ->
+                PhotoPreviewDialog(
                     attachment = attachment,
                     onDismiss = { previewAttachment = null },
                     onSave = {
                         val success = saveAttachmentToGallery(context, attachment)
                         Toast.makeText(
-                                        context,
-                                        if (success) "已保存到相册" else "保存失败",
-                                        Toast.LENGTH_SHORT
-                                )
+                                context,
+                                if (success) "已保存到相册" else "保存失败",
+                                Toast.LENGTH_SHORT
+                        )
                                 .show()
                         if (success) {
                             previewAttachment = null
                         }
                     }
-            )
-        }
+                )
+            }
 
-        if (showRenameDialog && currentConversationId != null) {
-            RenameConversationDialog(
+            // 重命名对话框
+            if (showRenameDialog && currentConversationId != null) {
+                RenameConversationDialog(
                     initialValue = aliasTitle.orEmpty(),
                     onConfirm = { name ->
                         if (name.isBlank()) {
@@ -271,7 +297,8 @@ internal fun ChatScreen(
                         showRenameDialog = false
                     },
                     onDismiss = { showRenameDialog = false }
-            )
+                )
+            }
         }
     }
 }
@@ -336,7 +363,8 @@ private fun MessageList(
         members: List<MemberProfile>,
         selfId: String,
         onCancel: (String) -> Unit,
-        onAttachmentClick: (Attachment) -> Unit
+        onAttachmentClick: (Attachment) -> Unit,
+        viewModel: ChatViewModel
 ) {
     val listState = rememberLazyListState()
     var shouldAutoScroll by remember { mutableStateOf(true) }
@@ -345,11 +373,18 @@ private fun MessageList(
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             // 阈值判断：是否接近底部
-            val isNearBottom =
+            val isNearBottom = 
                     listState.firstVisibleItemIndex >= listState.layoutInfo.totalItemsCount - 10
             if (isNearBottom || listState.firstVisibleItemIndex == 0) {
                 listState.animateScrollToItem(messages.lastIndex)
             }
+        }
+    }
+
+    // 初始加载时滚动到底部，显示最新消息
+    LaunchedEffect(Unit) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.lastIndex)
         }
     }
 
@@ -377,7 +412,8 @@ private fun MessageList(
                     isOwn = message.senderId == selfId,
                     profile = profile,
                     onCancel = { onCancel(message.id) },
-                    onAttachmentClick = onAttachmentClick
+                    onAttachmentClick = onAttachmentClick,
+                    viewModel = viewModel
             )
         }
     }
@@ -390,7 +426,8 @@ internal fun ChatBubble(
         isOwn: Boolean,
         profile: MemberProfile?,
         onCancel: () -> Unit,
-        onAttachmentClick: (Attachment) -> Unit
+        onAttachmentClick: (Attachment) -> Unit,
+        viewModel: ChatViewModel
 ) {
     var showActions by remember { mutableStateOf(false) }
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -398,7 +435,7 @@ internal fun ChatBubble(
             when {
                 isOwn && isDarkTheme -> SentBubbleDark
                 isOwn -> SentBubbleLight
-                isDarkTheme -> MaterialTheme.colorScheme.surface
+                isDarkTheme -> BubbleGrayDark
                 else -> BubbleGray // 使用BubbleGray颜色而不是MaterialTheme.colorScheme.surface
             }
     val bubbleContentColor =
@@ -414,7 +451,7 @@ internal fun ChatBubble(
     ) {
         Column(
                 horizontalAlignment = if (isOwn) Alignment.End else Alignment.Start,
-                modifier = Modifier.widthIn(max = 300.dp) // 限制气泡最大宽度
+                modifier = Modifier.widthIn(max = LocalConfiguration.current.screenWidthDp.dp * 0.8f) // 限制气泡最大宽度为屏幕宽度的80%
         ) {
             if (!isOwn && profile != null) {
                 Text(
@@ -469,7 +506,7 @@ internal fun ChatBubble(
                     }
                 }
                 if (isOwn) {
-                    StatusIcon(status = message.status)
+                    StatusIcon(status = message.status, viewModel = viewModel, message = message)
                 }
             }
             // 长按显示操作菜单
@@ -492,7 +529,11 @@ internal fun ChatBubble(
 }
 
 @Composable
-private fun StatusIcon(status: MessageStatus) {
+private fun StatusIcon(
+        status: MessageStatus,
+        viewModel: ChatViewModel? = null,
+        message: ChatMessage? = null
+) {
     when (status) {
         MessageStatus.QUEUED -> {
             Icon(
@@ -522,18 +563,41 @@ private fun StatusIcon(status: MessageStatus) {
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                 )
+        // 发送失败状态：显示红色感叹号图标，点击触发重新发送确认对话框
+        MessageStatus.FAILED -> {
+            var showRetryDialog by remember { mutableStateOf(false) }
+
+            Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = "Failed",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp).clickable { showRetryDialog = true }
+            )
+
+            if (showRetryDialog && viewModel != null && message != null) {
+                AlertDialog(
+                        onDismissRequest = { showRetryDialog = false },
+                        title = { Text("消息发送失败") },
+                        text = { Text("是否要重新发送这条消息？") },
+                        confirmButton = {
+                            TextButton(
+                                    onClick = {
+                                        viewModel.retryMessage(message.id)
+                                        showRetryDialog = false
+                                    }
+                            ) { Text("重试") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showRetryDialog = false }) { Text("取消") }
+                        }
+                )
+            }
+        }
         MessageStatus.CANCELLED ->
                 Icon(
-                        imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = null,
+                        imageVector = Icons.Default.Close, // 使用Close图标
+                        contentDescription = "Cancelled",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(24.dp)
-                )
-        MessageStatus.FAILED ->
-                Icon(
-                        imageVector = Icons.Rounded.Pending,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(24.dp)
                 )
     }
@@ -587,19 +651,17 @@ private fun MessageComposerBar(
         text: String,
         onTextChange: (String) -> Unit,
         onSend: () -> Unit,
-        onPickPhoto: () -> Unit
+        onPickPhoto: () -> Unit,
+        isSending: Boolean
 ) {
-    Surface(
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp
-    ) {
+    Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
         Row(
                 modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedTextField(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).heightIn(max = 120.dp),
                     value = text,
                     onValueChange = onTextChange,
                     placeholder = { Text("发个消息…") },
@@ -629,12 +691,20 @@ private fun MessageComposerBar(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            IconButton(onClick = onSend, enabled = text.isNotBlank()) {
-                Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send",
-                        tint = MaterialTheme.colorScheme.primary
-                )
+            IconButton(onClick = onSend, enabled = text.isNotBlank() && !isSending) {
+                if (isSending) {
+                    CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                    )
+                } else {
+                    Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send",
+                            tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -647,7 +717,7 @@ private fun PhotoAttachmentView(attachment: Attachment, onClick: () -> Unit) {
     Box(
             modifier =
                     Modifier.fillMaxWidth()
-                            .heightIn(max = 240.dp)
+                            .heightIn(max = LocalConfiguration.current.screenHeightDp.dp * 0.3f)
                             .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
                             .clickable(onClick = onClick)

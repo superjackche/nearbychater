@@ -38,35 +38,48 @@ internal fun LogsScreen(modifier: Modifier = Modifier, viewModel: SettingsViewMo
     val safeInsets =
             WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
 
-    Column(
-            modifier =
-                    modifier.fillMaxSize()
-                            .padding(safeInsets.asPaddingValues()) // 应用安全内边距
-                            .padding(16.dp), // 额外的内边距
-            verticalArrangement = Arrangement.spacedBy(12.dp) // 子元素间距12dp
+    Surface(
+            modifier = modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background // 使用主题背景色适配暗黑模式
     ) {
-        // 标题
-        Text(text = "Diagnostics Log", style = MaterialTheme.typography.headlineSmall)
+        Column(
+                modifier =
+                        Modifier.fillMaxSize()
+                                .padding(safeInsets.asPaddingValues()) // 应用安全内边距
+                                .padding(16.dp), // 额外的内边距
+                verticalArrangement = Arrangement.spacedBy(12.dp) // 子元素间距12dp
+        ) {
+            // 标题
+            Text(text = "Diagnostics Log", style = MaterialTheme.typography.headlineSmall)
 
-        // 操作按钮行：刷新和清空
-        RowOfButtons(onRefresh = { viewModel.refreshLogs() }, onClear = { viewModel.clearLogs() })
+            // 操作按钮行：刷新和清空
+            RowOfButtons(onRefresh = { viewModel.refreshLogs() }, onClear = { viewModel.clearLogs() })
 
-        // 日志内容区域
-        // Surface提供轻微的高度效果(tonalElevation)
-        Surface(tonalElevation = 2.dp, modifier = Modifier.fillMaxSize()) {
-            // LazyColumn: 懒加载列表
-            // 只渲染可见的日志行，性能好
-            LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            // 日志内容区域
+            // Surface提供轻微的高度效果(tonalElevation)
+            Surface(
+                tonalElevation = 2.dp, 
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface // 使用surface color适配暗黑模式
             ) {
-                // items()遍历日志列表
-                // 为每一行日志创建UI
-                items(logs) { line ->
-                    Text(text = line, style = MaterialTheme.typography.bodySmall)
-                    // HorizontalDivider: 水平分割线
-                    androidx.compose.material3.HorizontalDivider()
+                // LazyColumn: 懒加载列表
+                // 只渲染可见的日志行，性能好
+                LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // items()遍历日志列表
+                    // 为每一行日志创建UI
+                    items(logs) { line ->
+                        Text(
+                            text = line, 
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface // 使用onSurface color适配暗黑模式
+                        )
+                        // HorizontalDivider: 水平分割线
+                        androidx.compose.material3.HorizontalDivider()
+                    }
                 }
             }
         }

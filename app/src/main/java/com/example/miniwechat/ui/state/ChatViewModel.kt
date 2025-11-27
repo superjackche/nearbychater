@@ -49,6 +49,7 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
     private var hideBubbleJob: Job? = null
     // 添加缺失的属性
     private val _isRefreshing = MutableStateFlow(false)
+    private val _isSending = MutableStateFlow(false)
     private var periodicRefreshJob: Job = Job()
 
     public val members: StateFlow<List<MemberProfile>> = chatRepository.members
@@ -62,6 +63,7 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
             _diagnosticsBubble.asStateFlow()
     public val selfMemberId: MemberId = chatRepository.selfMemberId
     public val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    public val isSending: StateFlow<Boolean> = _isSending.asStateFlow()
     public val conversationAliases: StateFlow<Map<ConversationId, String>> =
             settingsRepository.conversationAliases
 
@@ -163,12 +165,24 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
                             chatRepository.ensureConversationMembers(setOf(it.memberId))
                         }
                                 ?: chatRepository.ensureConversationMembers(emptySet())
-        viewModelScope.launch { chatRepository.sendMessage(conversationId, text, attachment) }
+        viewModelScope.launch {
+            _isSending.value = true
+            try {
+                chatRepository.sendMessage(conversationId, text, attachment)
+            } finally {
+                _isSending.value = false
+            }
+        }
     }
 
     public fun cancelMessage(messageId: String) {
         val conversationId = _activeConversationId.value ?: return
         viewModelScope.launch { chatRepository.cancelMessage(conversationId, messageId) }
+    }
+
+    public fun retryMessage(messageId: String) {
+        val conversationId = _activeConversationId.value ?: return
+        viewModelScope.launch { chatRepository.retryMessage(conversationId, messageId) }
     }
 
     public fun sendPhoto(uri: Uri) {
@@ -181,9 +195,14 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
         // 启动协程处理图片发送
         // withContext(Dispatchers.IO)：切换至IO线程执行耗时操作(图片压缩)，防止主线程卡顿(ANR)
         viewModelScope.launch {
-            val attachment =
-                    withContext(Dispatchers.IO) { createPhotoAttachment(uri) } ?: return@launch
-            chatRepository.sendMessage(targetConversation, "", attachment)
+            _isSending.value = true
+            try {
+                val attachment =
+                        withContext(Dispatchers.IO) { createPhotoAttachment(uri) } ?: return@launch
+                chatRepository.sendMessage(targetConversation, "", attachment)
+            } finally {
+                _isSending.value = false
+            }
         }
     }
 
@@ -226,12 +245,21 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
         var maxDim = maxOf(currentBitmap.width, currentBitmap.height)
         while (data.size > maxBytes && maxDim > 320) {
             maxDim = (maxDim * 0.8f).toInt().coerceAtLeast(320)
-            currentBitmap = scaleBitmap(currentBitmap, maxDim)
+            // 创建新的缩放Bitmap，并回收旧的临时Bitmap
+            val scaledBitmap = scaleBitmap(currentBitmap, maxDim)
+            if (currentBitmap != bitmap) {
+                currentBitmap.recycle()
+            }
+            currentBitmap = scaledBitmap
             quality = 70
             data = compressBitmap(currentBitmap, quality)
         }
         if (data.size > maxBytes) {
             data = compressBitmap(currentBitmap, 40)
+        }
+        // 回收临时Bitmap，除非它是原始Bitmap
+        if (currentBitmap != bitmap) {
+            currentBitmap.recycle()
         }
         return data to "image/jpeg"
     }
@@ -280,6 +308,8 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
     override fun onCleared() {
         super.onCleared()
         nearbyChatService.stop()
+        // 取消周期性刷新任务，避免内存泄漏
+        periodicRefreshJob.cancel()
     }
 }
 

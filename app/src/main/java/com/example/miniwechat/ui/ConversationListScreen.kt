@@ -44,6 +44,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -72,6 +73,7 @@ import java.util.Locale
 // 1. 下拉刷新 (Pull-to-refresh)
 // 2. 侧滑操作 (置顶/删除)
 // 3. 点击进入聊天
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ConversationListScreen(
         modifier: Modifier = Modifier,
@@ -128,52 +130,59 @@ internal fun ConversationListScreen(
                     tonalElevation = 1.dp, // 轻微高度效果
                     shape = MaterialTheme.shapes.small
             ) {
-                // 如果没有会话，显示提示文字
-                if (filtered.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "暂无会话", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                } else {
-                    // LazyColumn: 懒加载列表
-                    // 只渲染可见的项，性能好
-                    LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        // items()遍历会话列表
-                        // key参数帮助Compose优化重组
-                        items(filtered, key = { it.conversationId }) { summary ->
-                            // onDelete: 删除回调
-                            // 如果是自己的会话null（不能删除），否则提供删除函数
-                            val onDelete =
-                                    if (summary.isSelf) null
-                                    else {
-                                        { viewModel.deleteConversation(summary.conversationId) }
-                                    }
-                            // displayTitle: 显示名称
-                            // 优先使用别名，其次使用默认标题
-                            val displayTitle = aliases[summary.conversationId] ?: summary.title
+                // PullToRefreshBox: 下拉刷新容器
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = { viewModel.refreshConversations() },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // 如果没有会话，显示提示文字
+                    if (filtered.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(text = "暂无会话", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    } else {
+                        // LazyColumn: 懒加载列表
+                        // 只渲染可见的项，性能好
+                        LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // items()遍历会话列表
+                            // key参数帮助Compose优化重组
+                            items(filtered, key = { it.conversationId }) { summary ->
+                                // onDelete: 删除回调
+                                // 如果是自己的会话null（不能删除），否则提供删除函数
+                                val onDelete =
+                                        if (summary.isSelf) null
+                                        else {
+                                            { viewModel.deleteConversation(summary.conversationId) }
+                                        }
+                                // displayTitle: 显示名称
+                                // 优先使用别名，其次使用默认标题
+                                val displayTitle = aliases[summary.conversationId] ?: summary.title
 
-                            // ConversationRow: 会话行组件
-                            // 支持点击、删除、置顶
-                            ConversationRow(
-                                    summary = summary,
-                                    displayTitle = displayTitle,
-                                    onClick = {
-                                        viewModel.selectConversation(summary.conversationId)
-                                        onConversationSelected(summary.conversationId)
-                                    },
-                                    onDelete = onDelete,
-                                    onTogglePinned = {
-                                        viewModel.setConversationPinned(
-                                                summary.conversationId,
-                                                !summary.isPinned
-                                        )
-                                    }
-                            )
-                            // HorizontalDivider: 分割线
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                                // ConversationRow: 会话行组件
+                                // 支持点击、删除、置顶
+                                ConversationRow(
+                                        summary = summary,
+                                        displayTitle = displayTitle,
+                                        onClick = {
+                                            viewModel.selectConversation(summary.conversationId)
+                                            onConversationSelected(summary.conversationId)
+                                        },
+                                        onDelete = onDelete,
+                                        onTogglePinned = {
+                                            viewModel.setConversationPinned(
+                                                    summary.conversationId,
+                                                    !summary.isPinned
+                                            )
+                                        }
+                                )
+                                // HorizontalDivider: 分割线
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            }
                         }
                     }
                 }

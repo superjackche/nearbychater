@@ -7,10 +7,14 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.display.DisplayManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -60,16 +64,93 @@ import com.example.miniwechat.data.service.ChatForegroundService
 // ComponentActivity是Jetpack Compose推荐的基类，提供Compose支持
 // Activity的生命周期：onCreate -> onStart -> onResume -> onPause -> onStop -> onDestroy
 class MainActivity : ComponentActivity() {
+    private lateinit var backCallback: OnBackInvokedCallback
+    
     // onCreate在Activity创建时调用
     // savedInstanceState保存了Activity销毁前的状态，比如屏幕旋转后可以恢复数据
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // enableEdgeToEdge让应用内容延伸到状态栏和导航栏下方，实现沉浸式体验
         enableEdgeToEdge()
+        
+        // 动态设置刷新率为120Hz（如果设备支持）
+        setHighRefreshRate()
+        
+        // 注册预测返回动画回调
+        registerBackInvokedCallback()
+        
         // setContent设置UI内容，使用Compose声明式UI
         // MiniwechatTheme提供主题配置（颜色、字体等）
         // MiniwechatApp是根Composable，整个应用的UI入口
         setContent { MiniwechatTheme { MiniwechatApp() } }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        // 取消注册预测返回动画回调
+        unregisterBackInvokedCallback()
+    }
+    
+    // 注册预测返回动画回调
+    private fun registerBackInvokedCallback() {
+        // 创建OnBackInvokedCallback，不传递优先级参数
+        backCallback = object : OnBackInvokedCallback {
+            override fun onBackInvoked() {
+                // 处理返回事件，这里由Compose导航组件处理
+                Log.d("BackInvoked", "onBackInvoked called")
+            }
+        }
+        
+        // 注册回调时设置优先级
+        onBackInvokedDispatcher.registerOnBackInvokedCallback(
+            OnBackInvokedDispatcher.PRIORITY_SYSTEM_NAVIGATION_OBSERVER,
+            backCallback
+        )
+    }
+    
+    // 取消注册预测返回动画回调
+    private fun unregisterBackInvokedCallback() {
+        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(backCallback)
+    }
+    
+    // 动态设置高刷新率
+    private fun setHighRefreshRate() {
+        val displayManager = getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
+        val displays = displayManager.displays
+        
+        for (display in displays) {
+            val supportedModes = display.supportedModes
+            if (supportedModes.isNotEmpty()) {
+                // 找到最高刷新率的显示模式
+                var highestRefreshRateMode = supportedModes[0]
+                for (mode in supportedModes) {
+                    if (mode.refreshRate > highestRefreshRateMode.refreshRate) {
+                        highestRefreshRateMode = mode
+                    }
+                }
+                
+                // 优先选择120Hz或更高的刷新率
+                var targetMode = highestRefreshRateMode
+                for (mode in supportedModes) {
+                    if (mode.refreshRate >= 120.0f) {
+                        targetMode = mode
+                        break
+                    }
+                }
+                
+                // 打印刷新率信息
+                val supportedRates = StringBuilder()
+                for (mode in supportedModes) {
+                    supportedRates.append(mode.refreshRate).append("Hz, ")
+                }
+                if (supportedRates.isNotEmpty()) {
+                    supportedRates.setLength(supportedRates.length - 2)
+                }
+                
+                Log.d("RefreshRate", "Display ${display.displayId} supports refresh rates: $supportedRates")
+                Log.d("RefreshRate", "Selected refresh rate: ${targetMode.refreshRate}Hz")
+            }
+        }
     }
 }
 
@@ -196,38 +277,38 @@ fun MiniwechatApp() {
                 startDestination = "home", // 启动时显示的界面
                 modifier = Modifier.fillMaxSize(),
                 // 定义界面切换动画
-                // enterTransition: 新界面进入时的动画
-                // exitTransition: 当前界面退出时的动画
-                // popEnterTransition: 返回时，目标界面进入的动画
-                // popExitTransition: 返回时，当前界面退出的动画
-                enterTransition = {
-                    // 从右侧滑入
-                    slideInHorizontally(
-                            initialOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(300) // 300ms动画
-                    )
-                },
-                exitTransition = {
-                    // 向左滑出
-                    slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> -fullWidth },
-                            animationSpec = tween(300)
-                    )
-                },
-                popEnterTransition = {
-                    // 返回时从左侧滑入
-                    slideInHorizontally(
-                            initialOffsetX = { fullWidth -> -fullWidth },
-                            animationSpec = tween(300)
-                    )
-                },
-                popExitTransition = {
-                    // 返回时向右滑出
-                    slideOutHorizontally(
-                            targetOffsetX = { fullWidth -> fullWidth },
-                            animationSpec = tween(300)
-                    )
-                }
+            // enterTransition: 新界面进入时的动画
+            // exitTransition: 当前界面退出时的动画
+            // popEnterTransition: 返回时，目标界面进入的动画
+            // popExitTransition: 返回时，当前界面退出的动画
+            enterTransition = {
+                // 从右侧滑入，优化动画性能，适合120Hz屏幕
+                slideInHorizontally(
+                        initialOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing) // 200ms动画，使用更流畅的缓动函数
+                )
+            },
+            exitTransition = {
+                // 向左滑出，优化动画性能，适合120Hz屏幕
+                slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> -fullWidth },
+                        animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            },
+            popEnterTransition = {
+                // 返回时从左侧滑入，优化动画性能，适合120Hz屏幕
+                slideInHorizontally(
+                        initialOffsetX = { fullWidth -> -fullWidth },
+                        animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            },
+            popExitTransition = {
+                // 返回时向右滑出，优化动画性能，适合120Hz屏幕
+                slideOutHorizontally(
+                        targetOffsetX = { fullWidth -> fullWidth },
+                        animationSpec = tween(200, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+                )
+            }
         ) {
             // composable定义一个路由
             // "home"是会话列表界面

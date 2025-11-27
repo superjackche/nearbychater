@@ -53,9 +53,7 @@ import kotlinx.coroutines.withContext
 // 用于标识"我"这个特殊会话（类似微信的文件传输助手）
 private const val SELF_SUMMARY_ID = "__self__"
 
-/**
- * Coordinates cached conversations, Nearby mesh events, and offline queue flushing.
- */
+/** Coordinates cached conversations, Nearby mesh events, and offline queue flushing. */
 class ChatRepository(
         private val context: Context,
         private val nearbyChatService: NearbyChatService,
@@ -188,7 +186,7 @@ class ChatRepository(
     ) {
         // 第1步：创建消息对象
         // 初始状态是QUEUED（排队中）
-        val message =
+        val message = 
                 ChatMessage(
                         conversationId = conversationId,
                         senderId = localMemberId,
@@ -213,30 +211,9 @@ class ChatRepository(
         // 第5步：更新内存缓存，UI立即显示（状态改为SENDING）
         upsertMessageLocally(message.copy(status = MessageStatus.SENDING))
 
-        // 第6步：触发消息发送
-        // flushTrigger会通知runFlushLoop()尝试发送所有排队的消息
-        flushTrigger.trySend(Unit)
-    }
-
-    public suspend fun cancelMessage(conversationId: ConversationId, messageId: String) {
-        pendingSends.remove(messageId)
-        onDb {
-            chatDao.updateMessageStatus(
-                    conversationId,
-                    messageId,
-                    MessageStatus.CANCELLED,
-                    shouldRelay = false
-            )
-        }
-        updateMessageLocally(conversationId, messageId) { current ->
-            current.copy(status = MessageStatus.CANCELLED, shouldRelay = false)
-        }
-    }
-
-    public suspend fun deleteConversation(conversationId: ConversationId) {
-        pendingSends.entries.removeIf { it.value.conversationId == conversationId }
-        onDb { chatDao.deleteConversation(conversationId) }
-        _conversations.update { it - conversationId }
+        // 第6步：立即尝试发送消息，而不是等待flushLoop
+        // 优化消息发送延迟，实现快速发送
+        attemptSend(message)
     }
 
     public suspend fun updateLocalNickname(memberId: MemberId, nickname: String) {
@@ -248,8 +225,7 @@ class ChatRepository(
 
     private fun conversationIdFromMembers(memberIds: Set<MemberId>): ConversationId {
         val remoteMembers = memberIds.filterNot { it == localMemberId }.sorted()
-        return if (remoteMembers.isEmpty()) SELF_SUMMARY_ID 
-        else remoteMembers.joinToString(":")
+        return if (remoteMembers.isEmpty()) SELF_SUMMARY_ID else remoteMembers.joinToString(":")
     }
 
     fun conversationIdFor(remoteMemberId: MemberId): ConversationId =
@@ -283,6 +259,36 @@ class ChatRepository(
 
     fun isMemberConnected(memberId: MemberId): Boolean =
             nearbyChatService.isMemberConnected(memberId)
+
+    public suspend fun cancelMessage(conversationId: ConversationId, messageId: String) {
+        pendingSends.remove(messageId)
+        onDb {
+            chatDao.updateMessageStatus(
+                    conversationId,
+                    messageId,
+                    MessageStatus.CANCELLED,
+                    shouldRelay = false
+            )
+        }
+        updateMessageLocally(conversationId, messageId) { current ->
+            current.copy(status = MessageStatus.CANCELLED, shouldRelay = false)
+        }
+    }
+
+    public suspend fun retryMessage(conversationId: ConversationId, messageId: String) {
+        val snapshot = _conversations.value[conversationId] ?: return
+        val message = snapshot.messages.find { it.id == messageId } ?: return
+        val queuedMessage = message.copy(status = MessageStatus.QUEUED)
+        pendingSends[messageId] = queuedMessage
+        onDb { chatDao.updateMessageStatus(conversationId, messageId, MessageStatus.QUEUED) }
+        updateMessageLocally(conversationId, messageId) { it.copy(status = MessageStatus.QUEUED) }
+        flushTrigger.trySend(Unit)
+    }
+
+    public suspend fun deleteConversation(conversationId: ConversationId) {
+        onDb { chatDao.deleteConversation(conversationId) }
+        _conversations.update { it - conversationId }
+    }
 
     private suspend fun attemptSend(message: ChatMessage) {
         when (val target = resolveConversationTarget(message.conversationId)) {
@@ -692,6 +698,14 @@ class ChatRepository(
         val pendingIntent =
                 PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
+        // 获取发送者信息
+        val senderProfile = _members.value[message.senderId]
+        val senderName = senderProfile?.let {
+            it.localNickname?.takeIf { it.isNotBlank() }
+                    ?: it.remoteNickname?.takeIf { it.isNotBlank() }
+                    ?: it.deviceModel?.takeIf { it.isNotBlank() }
+        } ?: message.senderId.take(6)
+
         val contentText =
                 when (message.type) {
                     MessageType.IMAGE -> "[图片]"
@@ -701,7 +715,7 @@ class ChatRepository(
         val notification =
                 NotificationCompat.Builder(context, channelId)
                         .setSmallIcon(R.mipmap.ic_launcher)
-                        .setContentTitle("收到新消息")
+                        .setContentTitle("${senderName} 发来消息")
                         .setContentText(contentText)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
                         .setContentIntent(pendingIntent)

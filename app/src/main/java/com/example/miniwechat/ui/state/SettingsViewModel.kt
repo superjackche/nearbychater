@@ -105,7 +105,7 @@ public class SettingsViewModel(application: Application) : AndroidViewModel(appl
     }
 
     // generateSamples: 生成测试数据
-    // 这个功能用于演示和测试，会创建20个模拟会话和消息
+    // 这个功能用于演示和测试，会创建100个模拟会话和消息
     // 在开发阶段非常有用，可以快速填充界面测试UI
     public fun generateSamples() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -116,7 +116,7 @@ public class SettingsViewModel(application: Application) : AndroidViewModel(appl
             // 先删除旧的测试数据
             removeSampleData(dao, localId)
 
-            // 创建20个测试会话
+            // 创建100个测试会话
             for (i in SAMPLE_RANGE) {
                 // 生成远程成员ID: sample_member_01, sample_member_02, ...
                 val remoteId = sampleMemberId(i)
@@ -136,23 +136,24 @@ public class SettingsViewModel(application: Application) : AndroidViewModel(appl
                 // 确保会话存在
                 dao.ensureConversation(conversationId, remoteId, setOf(localId, remoteId))
 
-                // 为每个会话生成5条消息
+                // 为每个会话生成几十条消息
                 val baseTime = System.currentTimeMillis()
 
-                // 从示例短语中随机选4条，再加1条固定的
-                val phrases = samplePhrases.shuffled(random).take(4).toMutableList()
-                phrases += "请查收我刚整理的课堂笔记"
-
-                // 创建消息，交替发送者
-                phrases.forEachIndexed { index, text ->
+                // 从示例短语中随机选多条消息，模拟真实聊天场景
+                val phrases = samplePhrases.shuffled(random)
+                
+                // 生成30-50条消息
+                val messageCount = random.nextInt(21) + 30
+                
+                for (j in 1..messageCount) {
                     // 偶数索引是对方发的，奇数索引是自己发的
-                    val sender = if (index % 2 == 0) remoteId else localId
+                    val sender = if (j % 2 == 0) remoteId else localId
                     val message =
                             ChatMessage(
                                     conversationId = conversationId,
                                     senderId = sender,
-                                    content = text,
-                                    timestamp = baseTime + index, // 时间戳递增
+                                    content = "${phrases[j % phrases.size]} (${j})",
+                                    timestamp = baseTime + j * 1000L, // 时间戳递增
                                     status = MessageStatus.SENT
                             )
                     dao.insertOrUpdateMessage(message)
@@ -210,8 +211,8 @@ public class SettingsViewModel(application: Application) : AndroidViewModel(appl
     // 类似Java的static成员，属于类而不是实例
     // private表示只在这个类内部可见
     private companion object {
-        // SAMPLE_RANGE: 测试数据范围 1..20
-        // 表示生成20个测试会话
-        private val SAMPLE_RANGE = 1..20
+        // SAMPLE_RANGE: 测试数据范围 1..100
+        // 表示生成100个测试会话
+        private val SAMPLE_RANGE = 1..100
     }
 }
