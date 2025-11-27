@@ -20,6 +20,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -68,6 +69,7 @@ class MainActivity : ComponentActivity() {
     
     // onCreate在Activity创建时调用
     // savedInstanceState保存了Activity销毁前的状态，比如屏幕旋转后可以恢复数据
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // enableEdgeToEdge让应用内容延伸到状态栏和导航栏下方，实现沉浸式体验
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
     }
     
     // 注册预测返回动画回调
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
     private fun registerBackInvokedCallback() {
         // 创建OnBackInvokedCallback，不传递优先级参数
         backCallback = object : OnBackInvokedCallback {
