@@ -21,3 +21,28 @@ build_error_4.log
 build_error_3.log
 build_error_2.log
 .trae/
+
+# Build outputs
+app/build/
+app/release/
+app/debug/
+
+# IDE specific files
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/navEditor.xml
+.idea/assetWizardSettings.xml
+.vscode/settings.json
+
+# OS specific files
+Thumbs.db
+.DS_Store
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
