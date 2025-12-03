@@ -117,7 +117,7 @@ POST_NOTIFICATIONS           - 通知权限（Android 16+）
 ## 安装和运行
 
 ### 环境要求
-- Android 8.0 (API 级别 26) 或更高版本
+- 仅支持Android 16.0 (API 级别 36) +
 - 蓝牙和 WiFi 功能
 - 至少 50MB 可用存储空间
 - 支持 Android 16 的新特性
