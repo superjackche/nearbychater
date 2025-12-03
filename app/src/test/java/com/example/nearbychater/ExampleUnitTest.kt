@@ -1,4 +1,4 @@
-package com.example.nearbychat
+package com.example.nearbychater
 
 import org.junit.Test
 

@@ -1,12 +1,12 @@
-package com.example.nearbychat.data.storage
+package com.example.nearbychater.data.storage
 
 import android.database.Cursor
-import com.example.nearbychat.core.model.Attachment
-import com.example.nearbychat.core.model.AttachmentType
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.core.model.MessageType
+import com.example.nearbychater.core.model.Attachment
+import com.example.nearbychater.core.model.AttachmentType
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.core.model.MessageType
 
 // 这个文件定义扩展函数(Extension Functions)
 // 扩展函数是Kotlin的特性，可以给已有的类添加新方法，而不需要继承

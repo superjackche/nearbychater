@@ -1,4 +1,4 @@
-# Miniwechat Mesh Chat Architecture
+# NearbyChater Mesh Chat Architecture
 
 ## 1. Product Overview
 - **Goal**: Android 14–16 mini app that lets two or more nearby devices chat only when both are online. Messaging flows through Google Nearby Connections using a simple flood-based mesh, with iMessage-inspired UI and WhatsApp-style delivery states.

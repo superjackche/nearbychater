@@ -1,7 +1,7 @@
-package com.example.nearbychat.core.logging
+package com.example.nearbychater.core.logging
 
 import android.content.Context
-import com.example.nearbychat.core.model.DiagnosticsEvent
+import com.example.nearbychater.core.model.DiagnosticsEvent
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

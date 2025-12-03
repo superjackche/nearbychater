@@ -1,4 +1,4 @@
-package com.example.nearbychat.data.chat
+package com.example.nearbychater.data.chat
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,25 +9,25 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.example.nearbychat.MainActivity
-import com.example.nearbychat.R
-import com.example.nearbychat.core.logging.LogManager
-import com.example.nearbychat.core.model.Attachment
-import com.example.nearbychat.core.model.AttachmentType
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.core.model.ConversationSnapshot
-import com.example.nearbychat.core.model.ConversationSummary
-import com.example.nearbychat.core.model.DiagnosticsEvent
-import com.example.nearbychat.core.model.MemberId
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MeshEnvelope
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.core.model.MessageType
-import com.example.nearbychat.data.nearby.EndpointInfo
-import com.example.nearbychat.data.nearby.NearbyChatService
-import com.example.nearbychat.data.nearby.NearbyEvent
-import com.example.nearbychat.data.storage.ChatDao
+import com.example.nearbychater.MainActivity
+import com.example.nearbychater.R
+import com.example.nearbychater.core.logging.LogManager
+import com.example.nearbychater.core.model.Attachment
+import com.example.nearbychater.core.model.AttachmentType
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.core.model.ConversationSnapshot
+import com.example.nearbychater.core.model.ConversationSummary
+import com.example.nearbychater.core.model.DiagnosticsEvent
+import com.example.nearbychater.core.model.MemberId
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MeshEnvelope
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.core.model.MessageType
+import com.example.nearbychater.data.nearby.EndpointInfo
+import com.example.nearbychater.data.nearby.NearbyChatService
+import com.example.nearbychater.data.nearby.NearbyEvent
+import com.example.nearbychater.data.storage.ChatDao
 import java.util.Collections
 import java.util.Locale
 import java.util.UUID
@@ -681,7 +681,7 @@ class ChatRepository(
     }
 
     private fun showNotification(conversationId: ConversationId, message: ChatMessage) {
-        val channelId = "miniwechat_messages"
+        val channelId = "NearbyChater_messages"
         val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 

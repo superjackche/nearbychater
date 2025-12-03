@@ -1,4 +1,4 @@
-package com.example.nearbychat.data.storage
+package com.example.nearbychater.data.storage
 
 import android.content.ContentValues
 import android.content.Context

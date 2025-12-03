@@ -1,4 +1,4 @@
-package com.example.nearbychat.data.service
+package com.example.nearbychater.data.service
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -10,8 +10,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.example.nearbychat.MainActivity
-import com.example.nearbychat.R
+import com.example.nearbychater.MainActivity
+import com.example.nearbychater.R
 
 // ChatForegroundService是一个前台服务(Foreground Service)
 // 前台服务 vs 后台服务：
@@ -53,8 +53,8 @@ class ChatForegroundService : Service() {
     private fun createNotification(): Notification {
         // 通知渠道ID和名称
         // Android 8.0+需要创建NotificationChannel
-        val channelId = "miniwechat_service_channel"
-        val channelName = "MiniWeChat Service"
+        val channelId = "NearbyChater_service_channel"
+        val channelName = "NearbyChater Service"
 
         // 获取NotificationManager系统服务
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -82,7 +82,7 @@ class ChatForegroundService : Service() {
         // 使用NotificationCompat构建通知
         // Compat后缀表示兼容旧版本Android
         return NotificationCompat.Builder(this, channelId)
-                .setContentTitle("MiniWeChat is running") // 通知标题
+                .setContentTitle("NearbyChater is running") // 通知标题
                 .setContentText("Listening for nearby devices...") // 通知内容
                 .setSmallIcon(R.mipmap.ic_launcher) // 通知图标
                 .setContentIntent(pendingIntent) // 点击通知的动作

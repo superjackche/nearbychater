@@ -1,9 +1,9 @@
-package com.example.nearbychat
+package com.example.nearbychater
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.example.nearbychat.core.logging.LogManager
-import com.example.nearbychat.core.model.DiagnosticsEvent
+import com.example.nearbychater.core.logging.LogManager
+import com.example.nearbychater.core.model.DiagnosticsEvent
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

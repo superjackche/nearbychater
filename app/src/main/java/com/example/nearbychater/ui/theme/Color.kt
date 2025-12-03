@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui.theme
+package com.example.nearbychater.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

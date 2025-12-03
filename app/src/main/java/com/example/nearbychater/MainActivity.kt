@@ -1,4 +1,4 @@
-package com.example.nearbychat
+package com.example.nearbychater
 
 // Android 16 最新原生动画支持
 import android.Manifest
@@ -52,15 +52,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.nearbychat.ui.ChatScreen
-import com.example.nearbychat.ui.ConversationListScreen
-import com.example.nearbychat.ui.LogsScreen
-import com.example.nearbychat.ui.SettingsScreen
-import com.example.nearbychat.ui.state.ChatViewModel
-import com.example.nearbychat.ui.state.SettingsViewModel
-import com.example.nearbychat.ui.state.SettingsViewModelFactory
-import com.example.nearbychat.ui.theme.MiniwechatTheme
-import com.example.nearbychat.data.service.ChatForegroundService
+import com.example.nearbychater.ui.ChatScreen
+import com.example.nearbychater.ui.ConversationListScreen
+import com.example.nearbychater.ui.LogsScreen
+import com.example.nearbychater.ui.SettingsScreen
+import com.example.nearbychater.ui.state.ChatViewModel
+import com.example.nearbychater.ui.state.SettingsViewModel
+import com.example.nearbychater.ui.state.SettingsViewModelFactory
+import com.example.nearbychater.ui.theme.NearbyChaterTheme
+import com.example.nearbychater.data.service.ChatForegroundService
 
 // MainActivity是应用的入口Activity
 // ComponentActivity是Jetpack Compose推荐的基类，提供Compose支持
@@ -83,9 +83,9 @@ class MainActivity : ComponentActivity() {
         registerBackInvokedCallback()
         
         // setContent设置UI内容，使用Compose声明式UI
-        // MiniwechatTheme提供主题配置（颜色、字体等）
-        // MiniwechatApp是根Composable，整个应用的UI入口
-        setContent { MiniwechatTheme { MiniwechatApp() } }
+        // NearbyChaterTheme提供主题配置（颜色、字体等）
+        // NearbyChaterApp是根Composable，整个应用的UI入口
+        setContent { NearbyChaterTheme { NearbyChaterApp() } }
     }
     
     override fun onDestroy() {
@@ -158,17 +158,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// MiniwechatApp是应用的根Composable
+// NearbyChaterApp是应用的根Composable
 // 负责权限管理、导航、服务启动等核心逻辑
 @Composable
-fun MiniwechatApp() {
+fun NearbyChaterApp() {
     // viewModel()获取ViewModel实例
     // ViewModel会自动绑定到Activity生命周期，屏幕旋转不会销毁
     val chatViewModel: ChatViewModel = viewModel()
     val settingsViewModel: SettingsViewModel = viewModel(
         factory = SettingsViewModelFactory(
             application = LocalContext.current.applicationContext as android.app.Application,
-            chatRepository = (LocalContext.current.applicationContext as com.example.nearbychat.MiniwechatApplication).chatRepository
+            chatRepository = (LocalContext.current.applicationContext as com.example.nearbychater.NearbyChaterApplication).chatRepository
         )
     )
 

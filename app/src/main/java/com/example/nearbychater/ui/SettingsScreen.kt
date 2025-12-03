@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui
+package com.example.nearbychater.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,8 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.nearbychat.ui.state.SettingsViewModel
-import com.example.nearbychat.util.ClipboardUtils
+import com.example.nearbychater.ui.state.SettingsViewModel
+import com.example.nearbychater.util.ClipboardUtils
 import kotlinx.coroutines.launch
 
 // SettingsScreen: 设置界面

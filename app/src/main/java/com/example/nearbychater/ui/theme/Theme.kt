@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui.theme
+package com.example.nearbychater.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -87,11 +87,11 @@ private val LightColorScheme =
                 outlineVariant = Color(0xFFCACACA)
         )
 
-// MiniwechatTheme: 应用主题Composable
+// NearbyChaterTheme: 应用主题Composable
 // 包裹整个应用的根Composable,提供主题配置
 // @Composable表示这是一个可组合函数,用于构建UI
 @Composable
-fun MiniwechatTheme(
+fun NearbyChaterTheme(
         darkTheme: Boolean = isSystemInDarkTheme(), // 是否深色模式,默认跟随系统
         // Dynamic color是Android 12+的新特性
         // 可以从壁纸提取颜色,生成个性化主题

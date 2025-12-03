@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui
+package com.example.nearbychater.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -64,8 +64,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.nearbychat.core.model.ConversationSummary
-import com.example.nearbychat.ui.state.ChatViewModel
+import com.example.nearbychater.core.model.ConversationSummary
+import com.example.nearbychater.ui.state.ChatViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -247,7 +247,7 @@ private fun TopBar(
                 verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                    text = "myMiniChat",
+                    text = "nearbyChater",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

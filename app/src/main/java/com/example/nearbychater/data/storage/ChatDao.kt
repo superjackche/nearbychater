@@ -1,18 +1,18 @@
-package com.example.nearbychat.data.storage
+package com.example.nearbychater.data.storage
 
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
-import com.example.nearbychat.core.model.Attachment
-import com.example.nearbychat.core.model.AttachmentType
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.core.model.ConversationSnapshot
-import com.example.nearbychat.core.model.MemberId
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.core.model.MessageType
+import com.example.nearbychater.core.model.Attachment
+import com.example.nearbychater.core.model.AttachmentType
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.core.model.ConversationSnapshot
+import com.example.nearbychater.core.model.MemberId
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.core.model.MessageType
 
 // ChatDao是Data Access Object（数据访问对象）的缩写
 // DAO模式把数据库操作封装成一个个函数，让上层代码不用直接写SQL

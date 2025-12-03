@@ -1,4 +1,4 @@
-package com.example.nearbychat.core.model
+package com.example.nearbychater.core.model
 
 import java.util.UUID
 import kotlinx.serialization.SerialName

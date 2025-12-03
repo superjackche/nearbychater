@@ -1,11 +1,11 @@
-package com.example.nearbychat.data.nearby
+package com.example.nearbychater.data.nearby
 
 import android.content.Context
 import android.os.Build
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.core.model.DiagnosticsEvent
-import com.example.nearbychat.core.model.MemberId
-import com.example.nearbychat.core.model.MeshEnvelope
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.core.model.DiagnosticsEvent
+import com.example.nearbychater.core.model.MemberId
+import com.example.nearbychater.core.model.MeshEnvelope
 import com.google.android.gms.nearby.Nearby
 import com.google.android.gms.nearby.connection.AdvertisingOptions
 import com.google.android.gms.nearby.connection.ConnectionInfo
@@ -33,7 +33,7 @@ import kotlinx.serialization.json.Json
 
 // SERVICE_ID: Nearby Connections服务标识符
 // 相同的SERVICE_ID的设备才能相互发现和连接
-private const val SERVICE_ID = "com.example.nearbychat.MESH"
+private const val SERVICE_ID = "com.example.nearbychater.MESH"
 
 // NearbyChatService是Google Nearby Connections API的封装
 // Nearby Connections是Google提供的P2P近场通信框架

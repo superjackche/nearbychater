@@ -1,18 +1,18 @@
-package com.example.nearbychat
+package com.example.nearbychater
 
 import android.app.Application
-import com.example.nearbychat.core.logging.LogManager
-import com.example.nearbychat.data.chat.ChatRepository
-import com.example.nearbychat.data.nearby.NearbyChatService
+import com.example.nearbychater.core.logging.LogManager
+import com.example.nearbychater.data.chat.ChatRepository
+import com.example.nearbychater.data.nearby.NearbyChatService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
-// MiniwechatApplication继承自Application
+// NearbyChaterApplication继承自Application
 // Application是Android应用的全局单例，在应用启动时创建，整个应用生命周期只有一个实例
 // 用途：初始化全局对象、配置、第三方SDK等
 // 类似Python的__main__或C的main函数，但更长寿
-class MiniwechatApplication : Application() {
+class NearbyChaterApplication : Application() {
     // applicationScope是应用级别的协程作用域
     // SupervisorJob：子协程失败不会影响其他协程
     // Dispatchers.Default：默认调度器，适合CPU密集型任务

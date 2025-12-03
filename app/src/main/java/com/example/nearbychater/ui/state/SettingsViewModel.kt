@@ -1,16 +1,16 @@
-package com.example.nearbychat.ui.state
+package com.example.nearbychater.ui.state
 
 import android.app.Application
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.nearbychat.core.logging.LogManager
-import com.example.nearbychat.data.settings.SettingsRepository
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.data.storage.ChatDao
-import com.example.nearbychat.data.chat.ChatRepository
+import com.example.nearbychater.core.logging.LogManager
+import com.example.nearbychater.data.settings.SettingsRepository
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.data.storage.ChatDao
+import com.example.nearbychater.data.chat.ChatRepository
 import java.util.UUID
 import kotlin.random.Random
 import kotlinx.coroutines.Dispatchers

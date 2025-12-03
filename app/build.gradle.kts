@@ -6,15 +6,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.miniwechat"
+    namespace = "com.example.nearbychater"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.miniwechat"
+        applicationId = "com.example.nearbychater"
         minSdk = 36
         targetSdk = 36
         versionCode = 2
-        versionName = "1.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

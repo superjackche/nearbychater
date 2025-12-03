@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui
+package com.example.nearbychater.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -21,7 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.nearbychat.ui.state.SettingsViewModel
+import com.example.nearbychater.ui.state.SettingsViewModel
 
 // LogsScreen: 日志查看界面
 // 显示应用运行过程中的诊断日志

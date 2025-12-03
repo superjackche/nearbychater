@@ -1,4 +1,4 @@
-package com.example.nearbychat
+package com.example.nearbychater
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
@@ -9,14 +9,14 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.longClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.core.model.DiagnosticsEvent
-import com.example.nearbychat.ui.ChatBubble
-import com.example.nearbychat.ui.DiagnosticsBubble
-import com.example.nearbychat.ui.state.DiagnosticsBubbleState
-import com.example.nearbychat.ui.theme.MiniwechatTheme
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.core.model.DiagnosticsEvent
+import com.example.nearbychater.ui.ChatBubble
+import com.example.nearbychater.ui.DiagnosticsBubble
+import com.example.nearbychater.ui.state.DiagnosticsBubbleState
+import com.example.nearbychater.ui.theme.NearbyChaterTheme
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -37,7 +37,7 @@ class ChatUiInstrumentedTest {
             status = MessageStatus.QUEUED
         )
         composeRule.setContent {
-            MiniwechatTheme {
+            NearbyChaterTheme {
                 ChatBubble(
                     message = message,
                     isOwn = true,
@@ -62,7 +62,7 @@ class ChatUiInstrumentedTest {
             isVisible = true
         )
         composeRule.setContent {
-            MiniwechatTheme {
+            NearbyChaterTheme {
                 DiagnosticsBubble(
                     state = state,
                     onDismiss = { dismissed = true }

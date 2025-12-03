@@ -1,6 +1,6 @@
-# MiniWeChat - 基于Nearby API的局域网聊天应用
+# NearbyChater - 基于Nearby API的局域网聊天应用
 
-MiniWeChat 是一款基于 Android Nearby Connections API 构建的局域网即时通讯应用，支持设备发现、点对点消息传输和图片分享等功能。该应用无需互联网连接，可在局域网内实现设备间的即时通信。
+NearbyChater 是一款基于 Android Nearby Connections API 构建的局域网即时通讯应用，支持设备发现、点对点消息传输和图片分享等功能。该应用无需互联网连接，可在局域网内实现设备间的即时通信。
 
 ## 功能特性
 
@@ -126,7 +126,7 @@ POST_NOTIFICATIONS           - 通知权限（Android 16+）
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd miniwechat
+cd nearbychater
 
 # 构建 APK
 ./gradlew assembleDebug
@@ -143,11 +143,11 @@ cd miniwechat
 - 每次推送到 main 分支或创建 Pull Request 时，会自动构建 Release 版本的 APK
 - 构建产物会自动上传为构建工件
 
-你可以在 [Actions](https://github.com/your-username/miniwechat/actions) 页面查看构建状态。
+你可以在 [Actions](https://github.com/your-username/NearbyChater/actions) 页面查看构建状态。
 
 ### 项目结构
 ```
-app/src/main/java/com/example/miniwechat/
+app/src/main/java/com/example/NearbyChater/
 ├── core/                    # 核心模型和日志管理
 │   ├── logging/            # 日志管理
 │   └── model/              # 数据模型定义
@@ -162,7 +162,7 @@ app/src/main/java/com/example/miniwechat/
 │   └── theme/              # 主题和样式
 ├── util/                    # 工具类
 ├── MainActivity.kt          # 主入口
-└── MiniwechatApplication.kt # 应用类
+└── NearbyChaterApplication.kt # 应用类
 ```
 
 ## 使用说明
@@ -225,10 +225,19 @@ app/src/main/java/com/example/miniwechat/
 
 ## 许可证
 
-本项目采用定制许可证，仅供学习和参考使用。
+本项目采用 Apache License 2.0 许可证。
 
-**重要提示**：未经版权所有者明确书面授权，任何人不得将本软件或其衍生品用于任何商业用途。
-如需商业使用，请联系版权所有者获得正式授权。
+版权所有 2025 车文浩
+
+根据 Apache License 2.0 版（"许可证"）授权；
+除非符合许可证的规定，否则您不得使用本文件。
+您可以在以下网址获取许可证的副本：
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+除非适用法律要求或书面同意，根据许可证分发的软件
+按"原样"提供，不提供任何形式的担保或条件，无论是明示还是暗示。
+有关许可证下特定语言的权限和限制，请参阅许可证。
 
 ## 贡献
 

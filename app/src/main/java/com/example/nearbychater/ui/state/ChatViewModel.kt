@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui.state
+package com.example.nearbychater.ui.state
 
 import android.app.Application
 import android.graphics.Bitmap
@@ -7,17 +7,17 @@ import android.net.Uri
 import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.nearbychat.core.logging.LogManager
-import com.example.nearbychat.core.model.Attachment
-import com.example.nearbychat.core.model.AttachmentType
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.core.model.ConversationSnapshot
-import com.example.nearbychat.core.model.ConversationSummary
-import com.example.nearbychat.core.model.DiagnosticsEvent
-import com.example.nearbychat.core.model.MemberId
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.data.settings.SettingsRepository
+import com.example.nearbychater.core.logging.LogManager
+import com.example.nearbychater.core.model.Attachment
+import com.example.nearbychater.core.model.AttachmentType
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.core.model.ConversationSnapshot
+import com.example.nearbychater.core.model.ConversationSummary
+import com.example.nearbychater.core.model.DiagnosticsEvent
+import com.example.nearbychater.core.model.MemberId
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.data.settings.SettingsRepository
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -38,9 +38,9 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
     private val logManager = LogManager(application)
     private val settingsRepository = SettingsRepository(application)
     private val nearbyChatService =
-            (application as com.example.nearbychat.MiniwechatApplication).nearbyChatService
+            (application as com.example.nearbychater.NearbyChaterApplication).nearbyChatService
     private val chatRepository =
-            (application as com.example.nearbychat.MiniwechatApplication).chatRepository
+            (application as com.example.nearbychater.NearbyChaterApplication).chatRepository
 
     // MutableStateFlow：可观察的数据流 (类似广播)，UI层订阅更新
     private val _activeConversationId = MutableStateFlow<ConversationId?>(null)

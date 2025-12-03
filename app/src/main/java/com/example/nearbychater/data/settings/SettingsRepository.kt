@@ -1,8 +1,8 @@
-package com.example.nearbychat.data.settings
+package com.example.nearbychater.data.settings
 
 import android.content.Context
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.data.storage.SettingsDao
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.data.storage.SettingsDao
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

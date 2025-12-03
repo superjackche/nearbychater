@@ -1,4 +1,4 @@
-package com.example.nearbychat.data.storage
+package com.example.nearbychater.data.storage
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteOpenHelper
 
 // 数据库名称和版本号，都是常量
 // 数据库版本号很重要，每次修改表结构时要递增，这样才能触发onUpgrade
-private const val DB_NAME = "nearbychat.db"
+private const val DB_NAME = "nearbychater.db"
 private const val DB_VERSION = 3
 
 // AppDatabaseHelper继承SQLiteOpenHelper，这是Android提供的数据库管理类

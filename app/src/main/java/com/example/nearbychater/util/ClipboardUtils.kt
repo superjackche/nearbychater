@@ -1,4 +1,4 @@
-package com.example.nearbychat.util
+package com.example.nearbychater.util
 
 import android.content.ClipData
 import android.content.ClipboardManager

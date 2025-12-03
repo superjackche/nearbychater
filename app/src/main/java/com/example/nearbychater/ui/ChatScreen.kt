@@ -1,4 +1,4 @@
-package com.example.nearbychat.ui
+package com.example.nearbychater.ui
 
 import android.content.ContentValues
 import android.content.Context
@@ -76,6 +76,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -88,19 +89,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.nearbychat.core.model.Attachment
-import com.example.nearbychat.core.model.AttachmentType
-import com.example.nearbychat.core.model.ChatMessage
-import com.example.nearbychat.core.model.ConversationId
-import com.example.nearbychat.core.model.MemberId
-import com.example.nearbychat.core.model.MemberProfile
-import com.example.nearbychat.core.model.MessageStatus
-import com.example.nearbychat.ui.state.ChatViewModel
-import com.example.nearbychat.ui.state.DiagnosticsBubbleState
-import com.example.nearbychat.ui.theme.BubbleGray
-import com.example.nearbychat.ui.theme.BubbleGrayDark
-import com.example.nearbychat.ui.theme.SentBubbleDark
-import com.example.nearbychat.ui.theme.SentBubbleLight
+import com.example.nearbychater.core.model.Attachment
+import com.example.nearbychater.core.model.AttachmentType
+import com.example.nearbychater.core.model.ChatMessage
+import com.example.nearbychater.core.model.ConversationId
+import com.example.nearbychater.core.model.MemberId
+import com.example.nearbychater.core.model.MemberProfile
+import com.example.nearbychater.core.model.MessageStatus
+import com.example.nearbychater.ui.state.ChatViewModel
+import com.example.nearbychater.ui.state.DiagnosticsBubbleState
+import com.example.nearbychater.ui.theme.BubbleGray
+import com.example.nearbychater.ui.theme.BubbleGrayDark
+import com.example.nearbychater.ui.theme.SentBubbleDark
+import com.example.nearbychater.ui.theme.SentBubbleLight
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -257,7 +258,7 @@ internal fun ChatScreen(
                 HorizontalDivider(color = Color(0x1F000000))
             }
 
-            // 诊断气泡
+            // 诊断气泡 - 使用最高zIndex确保显示在最上层
             DiagnosticsBubble(
                 state = diagnostics,
                 onDismiss = { viewModel.dismissDiagnosticsBubble() },
@@ -267,6 +268,7 @@ internal fun ChatScreen(
                             WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
                         )
                         .padding(top = 16.dp)
+                        .zIndex(Float.MAX_VALUE) // 确保诊断气泡显示在最上层
             )
 
             // 图片预览对话框
@@ -655,28 +657,42 @@ internal fun DiagnosticsBubble(
             modifier = modifier
     ) {
         Surface(
-                tonalElevation = 4.dp,
+                tonalElevation = 8.dp, // 增加高度以获得更好的阴影效果
+                shadowElevation = 8.dp, // 添加阴影使其更加突出
                 shape = MaterialTheme.shapes.large,
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f) // 使用错误容器颜色并增加透明度
         ) {
             Row(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // 添加错误图标以更好地指示这是错误/诊断消息
+                Icon(
+                        imageVector = Icons.Default.Error,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                )
                 Column(Modifier.weight(1f)) {
-                    Text(text = state.latestEvent?.code ?: "", fontWeight = FontWeight.Bold)
+                    Text(
+                            text = state.latestEvent?.code ?: "", 
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                    )
                     Text(
                             text = state.latestEvent?.message ?: "",
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
                 IconButton(onClick = onDismiss) {
                     Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Dismiss diagnostics"
+                            contentDescription = "Dismiss diagnostics",
+                            tint = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
@@ -891,7 +907,7 @@ private fun saveAttachmentToGallery(context: Context, attachment: Attachment): B
     if (attachment.type != AttachmentType.PHOTO) return false
     val mime = attachment.mimeType.ifBlank { "image/jpeg" }
     val extension = if (mime.contains("png", ignoreCase = true)) "png" else "jpg"
-    val name = "miniwechat_${System.currentTimeMillis()}.$extension"
+    val name = "NearbyChater_${System.currentTimeMillis()}.$extension"
     val imageCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
     } else {

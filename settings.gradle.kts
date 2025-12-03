@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "miniwechat"
+rootProject.name = "nearbychater"
 include(":app")
  
