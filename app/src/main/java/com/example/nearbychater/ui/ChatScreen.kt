@@ -171,153 +171,156 @@ internal fun ChatScreen(
     // 安全区域内边距，确保内容不被状态栏/导航栏遮挡
     val safeInsets = WindowInsets.safeDrawing
     
-    // 使用Scaffold布局处理输入法适配和顶部导航栏
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            // 将ChatTopBar作为Scaffold的topBar，自动处理状态栏内边距
-            ChatTopBar(
-                title = title,
-                subtitle = subtitle,
-                onBack = onBack,
-                menuExpanded = overflowMenuExpanded,
-                onToggleMenu = { overflowMenuExpanded = !overflowMenuExpanded },
-                onDismissMenu = { overflowMenuExpanded = false },
-                canRename = currentConversationId != null,
-                onRenameConversation = {
-                    overflowMenuExpanded = false
-                    if (currentConversationId != null) {
-                        showRenameDialog = true
-                    }
-                },
-                onOpenSettings = {
-                    overflowMenuExpanded = false
-                    onOpenSettings()
-                },
-                onOpenLogs = {
-                    overflowMenuExpanded = false
-                    onOpenLogs()
-                },
-                isGroupChat = remoteMemberIds.size > 1,
-                onViewMembers = {
-                    overflowMenuExpanded = false
-                    showMembersDialog = true
-                }
-            )
-        },
-        bottomBar = {
-            // 输入框与键盘无缝贴合，添加平滑过渡动画
-            Box {
-                MessageComposerBar(
-                    modifier = Modifier,
-                    text = composerText,
-                    onTextChange = { composerText = it },
-                    onSend = {
-                        if (composerText.isNotBlank()) {
-                            viewModel.sendChatMessage(composerText.trim())
-                            composerText = ""
+    // 使用Box作为根布局，确保诊断气泡显示在最顶层
+    Box(modifier = modifier.fillMaxSize()) {
+        // 使用Scaffold布局处理输入法适配和顶部导航栏
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            topBar = {
+                // 将ChatTopBar作为Scaffold的topBar，自动处理状态栏内边距
+                ChatTopBar(
+                    title = title,
+                    subtitle = subtitle,
+                    onBack = onBack,
+                    menuExpanded = overflowMenuExpanded,
+                    onToggleMenu = { overflowMenuExpanded = !overflowMenuExpanded },
+                    onDismissMenu = { overflowMenuExpanded = false },
+                    canRename = currentConversationId != null,
+                    onRenameConversation = {
+                        overflowMenuExpanded = false
+                        if (currentConversationId != null) {
+                            showRenameDialog = true
                         }
                     },
-                    onPickPhoto = {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(
-                                ActivityResultContracts.PickVisualMedia.ImageOnly
+                    onOpenSettings = {
+                        overflowMenuExpanded = false
+                        onOpenSettings()
+                    },
+                    onOpenLogs = {
+                        overflowMenuExpanded = false
+                        onOpenLogs()
+                    },
+                    isGroupChat = remoteMemberIds.size > 1,
+                    onViewMembers = {
+                        overflowMenuExpanded = false
+                        showMembersDialog = true
+                    }
+                )
+            },
+            bottomBar = {
+                // 输入框与键盘无缝贴合，添加平滑过渡动画
+                Box {
+                    MessageComposerBar(
+                        modifier = Modifier,
+                        text = composerText,
+                        onTextChange = { composerText = it },
+                        onSend = {
+                            if (composerText.isNotBlank()) {
+                                viewModel.sendChatMessage(composerText.trim())
+                                composerText = ""
+                            }
+                        },
+                        onPickPhoto = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(
+                                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                                )
                             )
-                        )
-                    },
-                    isSending = viewModel.isSending.collectAsStateWithLifecycle().value,
-                    onInputFieldClick = {
-                        // 点击输入框时设置滚动标志
-                        shouldScrollToLatest = true
-                    }
-                )
-            }
-        },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0) // 禁用Scaffold默认的窗口内边距，手动控制
-    ) { innerPadding ->
-        // 主内容区域 - 优化布局确保状态栏空间预留
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-                    .padding(innerPadding) // 使用Scaffold的内边距，确保内容不被底部栏遮挡
-            ) {
-                // 顶部导航栏已作为Scaffold的topBar，这里不再需要额外的顶部空间
-                HorizontalDivider(color = Color(0x1F000000))
-                // 使用weight(1f)确保MessageList占据剩余空间，并在输入法弹出时自适应调整
-                MessageList(
-                    modifier = Modifier.weight(1f),
-                    messages = messages,
-                    members = members,
-                    selfId = viewModel.selfMemberId,
-                    onCancel = { viewModel.cancelMessage(it) },
-                    onAttachmentClick = { previewAttachment = it },
-                    viewModel = viewModel,
-                    shouldScrollToLatest = shouldScrollToLatest,
-                    onScrollComplete = { shouldScrollToLatest = false }
-                )
-                HorizontalDivider(color = Color(0x1F000000))
-            }
-
-            // 诊断气泡 - 使用最高zIndex确保显示在最上层
-            DiagnosticsBubble(
-                state = diagnostics,
-                onDismiss = { viewModel.dismissDiagnosticsBubble() },
-                modifier =
-                    Modifier.align(Alignment.TopCenter)
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
-                        )
-                        .padding(top = 16.dp)
-                        .zIndex(Float.MAX_VALUE) // 确保诊断气泡显示在最上层
-            )
-
-            // 图片预览对话框
-            previewAttachment?.let { attachment ->
-                PhotoPreviewDialog(
-                    attachment = attachment,
-                    onDismiss = { previewAttachment = null },
-                    onSave = {
-                        val success = saveAttachmentToGallery(context, attachment)
-                        Toast.makeText(
-                                context,
-                                if (success) "已保存到相册" else "保存失败",
-                                Toast.LENGTH_SHORT
-                        )
-                                .show()
-                        if (success) {
-                            previewAttachment = null
+                        },
+                        isSending = viewModel.isSending.collectAsStateWithLifecycle().value,
+                        onInputFieldClick = {
+                            // 点击输入框时设置滚动标志
+                            shouldScrollToLatest = true
                         }
-                    }
-                )
-            }
-
-            // 重命名对话框
-    if (showRenameDialog && currentConversationId != null) {
-        RenameConversationDialog(
-            initialValue = aliasTitle.orEmpty(),
-            onConfirm = { name ->
-                if (name.isBlank()) {
-                    viewModel.clearConversationAlias(currentConversationId)
-                } else {
-                    viewModel.setConversationAlias(currentConversationId, name)
+                    )
                 }
-                showRenameDialog = false
             },
-            onReset = {
-                viewModel.clearConversationAlias(currentConversationId)
-                showRenameDialog = false
-            },
-            onDismiss = { showRenameDialog = false }
-        )
-    }
-    // 群成员列表对话框
-    if (showMembersDialog && currentConversationId != null) {
-        GroupMembersDialog(
-            members = activeMembers,
-            onDismiss = { showMembersDialog = false }
-        )
-    }
+            contentWindowInsets = WindowInsets(0, 0, 0, 0) // 禁用Scaffold默认的窗口内边距，手动控制
+        ) { innerPadding ->
+            // 主内容区域 - 优化布局确保状态栏空间预留
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                        .padding(innerPadding) // 使用Scaffold的内边距，确保内容不被底部栏遮挡
+                ) {
+                    // 顶部导航栏已作为Scaffold的topBar，这里不再需要额外的顶部空间
+                    HorizontalDivider(color = Color(0x1F000000))
+                    // 使用weight(1f)确保MessageList占据剩余空间，并在输入法弹出时自适应调整
+                    MessageList(
+                        modifier = Modifier.weight(1f),
+                        messages = messages,
+                        members = members,
+                        selfId = viewModel.selfMemberId,
+                        onCancel = { viewModel.cancelMessage(it) },
+                        onAttachmentClick = { previewAttachment = it },
+                        viewModel = viewModel,
+                        shouldScrollToLatest = shouldScrollToLatest,
+                        onScrollComplete = { shouldScrollToLatest = false }
+                    )
+                    HorizontalDivider(color = Color(0x1F000000))
+                }
+
+                // 图片预览对话框
+                previewAttachment?.let { attachment ->
+                    PhotoPreviewDialog(
+                        attachment = attachment,
+                        onDismiss = { previewAttachment = null },
+                        onSave = {
+                            val success = saveAttachmentToGallery(context, attachment)
+                            Toast.makeText(
+                                    context,
+                                    if (success) "已保存到相册" else "保存失败",
+                                    Toast.LENGTH_SHORT
+                            )
+                                    .show()
+                            if (success) {
+                                previewAttachment = null
+                            }
+                        }
+                    )
+                }
+
+                // 重命名对话框
+        if (showRenameDialog && currentConversationId != null) {
+            RenameConversationDialog(
+                initialValue = aliasTitle.orEmpty(),
+                onConfirm = { name ->
+                    if (name.isBlank()) {
+                        viewModel.clearConversationAlias(currentConversationId)
+                    } else {
+                        viewModel.setConversationAlias(currentConversationId, name)
+                    }
+                    showRenameDialog = false
+                },
+                onReset = {
+                    viewModel.clearConversationAlias(currentConversationId)
+                    showRenameDialog = false
+                },
+                onDismiss = { showRenameDialog = false }
+            )
         }
+        // 群成员列表对话框
+        if (showMembersDialog && currentConversationId != null) {
+            GroupMembersDialog(
+                members = activeMembers,
+                onDismiss = { showMembersDialog = false }
+            )
+        }
+            }
+        }
+
+        // 诊断气泡 - 移动到Scaffold外部，确保显示在最顶层，并避开顶部导航栏
+        DiagnosticsBubble(
+            state = diagnostics,
+            onDismiss = { viewModel.dismissDiagnosticsBubble() },
+            modifier =
+                Modifier.align(Alignment.TopCenter)
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
+                    )
+                    .padding(top = 72.dp) // 增加顶部内边距，避开顶部导航栏（约56dp高度 + 16dp间距）
+                    .zIndex(Float.MAX_VALUE) // 确保诊断气泡显示在最上层
+        )
     }
 }
 
@@ -394,33 +397,33 @@ private fun MessageList(
         shouldScrollToLatest: Boolean = false,
         onScrollComplete: () -> Unit = {}
 ) {
-    // 将消息列表按时间倒序排列，最新消息在列表开头
-    val sortedMessages = messages.sortedByDescending { it.timestamp }
+    // 将消息列表按时间升序排列，最新消息在列表末尾（底部）
+    val sortedMessages = messages.sortedBy { it.timestamp }
     val listState = rememberLazyListState()
     var shouldAutoScroll by remember { mutableStateOf(true) }
 
-    // 自动滚动逻辑：当有新消息且当前位于顶部时，自动滚动至最新
+    // 自动滚动逻辑：当有新消息且当前位于底部时，自动滚动至最新
     LaunchedEffect(messages.size) {
         if (sortedMessages.isNotEmpty()) {
-            // 阈值判断：是否接近顶部
-            val isNearTop = listState.firstVisibleItemIndex == 0
-            if (isNearTop) {
-                listState.scrollToItem(0)
+            // 阈值判断：是否接近底部
+            val isNearBottom = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == sortedMessages.size - 1
+            if (isNearBottom) {
+                listState.scrollToItem(sortedMessages.size - 1)
             }
         }
     }
 
-    // 初始加载时滚动到顶部，显示最新消息
+    // 初始加载时滚动到底部，显示最新消息
     LaunchedEffect(Unit) {
         if (sortedMessages.isNotEmpty()) {
-            listState.scrollToItem(0)
+            listState.scrollToItem(sortedMessages.size - 1)
         }
     }
 
     // 处理输入框点击事件，滚动到最新消息
     LaunchedEffect(shouldScrollToLatest) {
         if (shouldScrollToLatest && sortedMessages.isNotEmpty()) {
-            listState.animateScrollToItem(0)
+            listState.animateScrollToItem(sortedMessages.size - 1)
             onScrollComplete()
         }
     }
