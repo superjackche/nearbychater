@@ -18,10 +18,10 @@ import kotlinx.coroutines.withContext
 // 2. 提供StateFlow让UI层观察数据变化
 // 3. 在后台线程执行数据库操作，不阻塞UI
 class SettingsRepository(
-        context: Context,
-        // ioDispatcher指定在哪个线程执行数据库操作
-        // 默认是Dispatchers.IO，专门用于IO操作的线程池
-        private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    context: Context,
+    // ioDispatcher指定在哪个线程执行数据库操作
+    // 默认是Dispatchers.IO，专门用于IO操作的线程池
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
     // settingsDao负责实际的数据库读写操作
     private val settingsDao = SettingsDao(context.applicationContext)
@@ -31,13 +31,11 @@ class SettingsRepository(
     // 这样一个设置读取失败不会导致整个Repository崩溃
     private val scope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
-    // MutableStateFlow是私有的，只能在内部修改
-    // StateFlow是公开的，外部只能读取和观察
-    // 这种写法保证了数据的单向流动，类似单例模式的封装思想
-    private val _diagnosticsEnabled = MutableStateFlow(true)
+    // 通过伴生对象共享设置流，保证多个ViewModel实例之间一致
+    private val _diagnosticsEnabled = sharedDiagnosticsEnabled
     val diagnosticsEnabled: StateFlow<Boolean> = _diagnosticsEnabled
 
-    private val _backgroundServiceEnabled = MutableStateFlow(true)
+    private val _backgroundServiceEnabled = sharedBackgroundServiceEnabled
     val backgroundServiceEnabled: StateFlow<Boolean> = _backgroundServiceEnabled
 
     // 会话别名：用于给会话起个自定义名称
@@ -46,11 +44,17 @@ class SettingsRepository(
     val conversationAliases: StateFlow<Map<ConversationId, String>> = _conversationAliases
 
     // companion object相当于Java的static
-    // 类的所有实例共享这些常量
+    // 类的所有实例共享这些常量和状态
     private companion object {
         // 会话别名在数据库中存储的key前缀
         // 比如alias:conv123 = "我的好友"
         private const val ALIAS_PREFIX = "alias:"
+
+        // 共享的设置StateFlow，确保不同ViewModel看到同一份数据
+        val sharedDiagnosticsEnabled = MutableStateFlow(true)
+        val sharedBackgroundServiceEnabled = MutableStateFlow(true)
+        var initialized = false
+        val initLock = Any()
     }
 
     // init块在对象创建时执行
@@ -59,8 +63,7 @@ class SettingsRepository(
         scope.launch {
             // 从数据库读取设置并更新StateFlow
             // 这样UI层订阅StateFlow后立即能获得初始值
-            _diagnosticsEnabled.value = settingsDao.diagnosticsEnabled(true)
-            _backgroundServiceEnabled.value = settingsDao.backgroundServiceEnabled(true)
+            initializeSharedIfNeeded()
             _conversationAliases.value = loadAliases()
         }
     }
@@ -104,6 +107,16 @@ class SettingsRepository(
             settingsDao.deleteKey(aliasKey(conversationId))
             // - 操作符创建新map，删除指定的key
             _conversationAliases.value = _conversationAliases.value - conversationId
+        }
+    }
+
+    private suspend fun initializeSharedIfNeeded() {
+        // 避免多个实例重复读库
+        synchronized(initLock) {
+            if (initialized) return
+            sharedDiagnosticsEnabled.value = settingsDao.diagnosticsEnabled(true)
+            sharedBackgroundServiceEnabled.value = settingsDao.backgroundServiceEnabled(true)
+            initialized = true
         }
     }
 

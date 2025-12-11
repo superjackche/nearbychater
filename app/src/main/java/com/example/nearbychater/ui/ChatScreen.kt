@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -172,7 +173,7 @@ internal fun ChatScreen(
     val safeInsets = WindowInsets.safeDrawing
     
     // 使用Box作为根布局，确保诊断气泡显示在最顶层
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize().imePadding()) {
         // 使用Scaffold布局处理输入法适配和顶部导航栏
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -438,10 +439,7 @@ private fun MessageList(
                             .padding(horizontal = 8.dp),
             state = listState,
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(
-                top = 12.dp,
-                bottom = 12.dp + WindowInsets.ime.getBottom(LocalDensity.current).dp // 动态添加输入法高度内边距
-            )
+            contentPadding = PaddingValues(top = 12.dp, bottom = 12.dp)
     ) {
         itemsIndexed(
                 items = sortedMessages,
@@ -718,7 +716,7 @@ private fun MessageComposerBar(
     Surface(
         color = MaterialTheme.colorScheme.surface, 
         tonalElevation = 2.dp,
-        modifier = modifier.windowInsetsPadding(WindowInsets.ime.only(WindowInsetsSides.Bottom)) // 添加输入法底部内边距
+        modifier = modifier // 由外层Box统一处理键盘抬升，避免重复抬升导致遮挡
     ) {
         Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),

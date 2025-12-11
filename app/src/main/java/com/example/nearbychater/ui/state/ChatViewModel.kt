@@ -46,6 +46,8 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
     private val _activeConversationId = MutableStateFlow<ConversationId?>(null)
     private val _diagnosticsBubble = MutableStateFlow(DiagnosticsBubbleState())
     private var hideBubbleJob: Job? = null
+    private var snoozedDiagnosticsKey: String? = null
+    private var snoozedDiagnosticsUntil: Long = 0L
     // 添加缺失的属性
     private val _isRefreshing = MutableStateFlow(false)
     private val _isSending = MutableStateFlow(false)
@@ -104,13 +106,13 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
                 }
             }
         }
-        // 定时刷新任务 (30秒)
+        // 定时刷新任务 (5秒)
         // 使用协程避免阻塞主线程
         periodicRefreshJob =
                 viewModelScope.launch {
                     while (true) {
                         chatRepository.refresh()
-                        delay(30_000)
+                        delay(5_000)
                     }
                 }
     }
@@ -146,13 +148,18 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
             _isRefreshing.value = true
             try {
                 chatRepository.refresh()
-                delay(1_000)
+                delay(300)
             } finally {
                 _isRefreshing.value = false
             }
         }
     }
     public fun dismissDiagnosticsBubble() {
+        val currentEvent = _diagnosticsBubble.value.latestEvent
+        if (currentEvent != null) {
+            snoozedDiagnosticsKey = diagnosticsKey(currentEvent)
+            snoozedDiagnosticsUntil = System.currentTimeMillis() + 10_000L
+        }
         _diagnosticsBubble.value = _diagnosticsBubble.value.copy(isVisible = false)
         hideBubbleJob?.cancel()
     }
@@ -294,15 +301,23 @@ public class ChatViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch { settingsRepository.clearConversationAlias(conversationId) }
     }
     private fun showDiagnostics(event: DiagnosticsEvent) {
+        val key = diagnosticsKey(event)
+        if (System.currentTimeMillis() < snoozedDiagnosticsUntil && key == snoozedDiagnosticsKey) {
+            return
+        }
+        snoozedDiagnosticsKey = null
+        snoozedDiagnosticsUntil = 0L
         _diagnosticsBubble.value =
                 _diagnosticsBubble.value.copy(latestEvent = event, isVisible = true)
         hideBubbleJob?.cancel()
         hideBubbleJob =
                 viewModelScope.launch {
-                    delay(3_000)
+                    delay(1_000)
                     _diagnosticsBubble.value = _diagnosticsBubble.value.copy(isVisible = false)
                 }
     }
+
+    private fun diagnosticsKey(event: DiagnosticsEvent): String = "${event.code}:${event.message}"
 
     override fun onCleared() {
         super.onCleared()

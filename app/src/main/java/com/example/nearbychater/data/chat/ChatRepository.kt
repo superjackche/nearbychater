@@ -253,7 +253,8 @@ class ChatRepository(
 
     suspend fun refresh() {
         nearbyChatService.refreshDiscovery()
-        reloadState()
+        // 不调用reloadState()，避免频繁覆盖内存中的消息
+        // 消息通过observeNearbyEvents()的实时流处理
         flushTrigger.trySend(Unit)
     }
 
@@ -333,9 +334,26 @@ class ChatRepository(
     }
 
     private suspend fun reloadState() {
-        val (members, conversations) = onDb { chatDao.readMembers() to chatDao.readConversations() }
-        _members.value = members
-        _conversations.value = conversations
+        val (membersFromDb, conversationsFromDb) = onDb { chatDao.readMembers() to chatDao.readConversations() }
+        // 合并数据库状态和内存状态，避免丢失未保存的消息
+        _members.value = (_members.value + membersFromDb)
+        _conversations.update { current ->
+            conversationsFromDb.mapValues { (convId, dbSnapshot) ->
+                val currentSnapshot = current[convId]
+                if (currentSnapshot != null) {
+                    // 合并消息：保留内存中的消息（可能未持久化），同时加入数据库中的消息
+                    val mergedMessages = (currentSnapshot.messages + dbSnapshot.messages)
+                        .distinctBy { it.id }
+                        .sortedBy { it.timestamp }
+                    dbSnapshot.copy(messages = mergedMessages)
+                } else {
+                    dbSnapshot
+                }
+            }.let { dbConversations ->
+                // 保留内存中的其他会话
+                current + dbConversations
+            }
+        }
     }
 
     // observeNearbyEvents: 监听Nearby服务的事件
@@ -431,7 +449,7 @@ class ChatRepository(
             return
         }
 
-        // 情凵3：来自其他设备的正常消息
+        // 第3步：来自其他设备的正常消息
         val delivered = message.copy(status = MessageStatus.SENT)
         // 获取消息参与者列表，如果envelope中没有，就使用已知的成员列表
         val remoteParticipants =
@@ -440,7 +458,11 @@ class ChatRepository(
         val memberIds = (remoteParticipants + message.senderId).toSet()
         val fullMemberSet = memberIds + localMemberId
 
-        // 保存消息到数据库
+        // 立即更新内存，不等待数据库操作
+        ensureConversationLocally(message.conversationId, memberIds)
+        upsertMessageLocally(delivered)
+
+        // 异步保存到数据库（不阻塞消息处理）
         onDb {
             chatDao.ensureConversation(
                     message.conversationId,
@@ -449,8 +471,6 @@ class ChatRepository(
             )
             chatDao.insertOrUpdateMessage(delivered)
         }
-        ensureConversationLocally(message.conversationId, memberIds)
-        upsertMessageLocally(delivered)
 
         // 发送ACK确认
         // 告诉发送者：我收到了
